@@ -119,30 +119,13 @@ char token_type_arr [TokenTypeEnd][TOKEN_STR_MAX] = {
 
 typedef struct {
     TokenType type;
-    char *val;
+    char *value;
 } Token;
 
 typedef struct {
     TokenType type;
     char str[TOKEN_RULE_STR_MAX];
 } TokenRule;
-
-int is_digit(const char c) {
-    if (c >= '0' && c <= '9') return 1;
-    return 0;
-}
-
-int is_char(const char c) {
-    if (c >= 'a' && c <= 'z') return 1;
-    if (c >= 'A' && c <= 'Z') return 1;
-    return 0;
-}
-
-int is_alpha(const char c) {
-    if(is_char(c)) return 1;
-    if(is_digit(c)) return 1;
-    return 0;
-}
 
 int is_eol(const char c) {
     if(c == '\n') return 1;
@@ -261,8 +244,8 @@ void tokenizer(const char * code) {
                 Token * token = &tokens[token_idx];
                 token->type  = regex_idx;
                 assert(strlen(capture_string) < CAPTURE_STR_MAX);
-                token->val = malloc(strlen(capture_string)+1);
-                strcpy(token->val, capture_string);
+                token->value = malloc(strlen(capture_string)+1);
+                strcpy(token->value, capture_string);
                 inc(token_idx, 1, TOKEN_ARR_MAX);
                 inc(code_idx, strlen(capture_string), CODE_FILE_MAX);
                 if (token->type == eof) return;
@@ -290,7 +273,7 @@ void tokenizer(const char * code) {
     }// code
 }
 
-#if 0
+#if 1
 
 /*************************************************************
 ************************* PARSER ***************************** 
@@ -319,11 +302,7 @@ int peek(TokenType type) {
 
 
 #define NODES(f) \
-    f(NODE_ID)          \
-    f(NODE_VAR_REF)     \
-    f(NODE_CALL)        \
-    f(NODE_INT)         \
-    f(NODE_DEF)
+    f(NODE_TEXT)
 
 typedef enum {
     NODES(CREATE_ENUM)
@@ -333,6 +312,8 @@ typedef enum {
 char node_type_arr[NodeTypeEnd][TOKEN_STR_MAX] = {
     NODES(CREATE_STRINGS)
 };
+
+#define NODE_TEXT_MAX 100
 
 struct Node{
     NodeType type;
@@ -350,17 +331,19 @@ struct Node{
             char name[TOKEN_STR_MAX];
             struct Node ** arg_exprs;
         } call;
-        struct { // NODE_DEF
-            char name[TOKEN_STR_MAX];
-            struct Node **args;
-            struct Node *body;
-        } def;
+        struct { // NODE_TEXT
+            char *value;
+        } text;
     };
 };
 
 void print_node(struct Node *node) {
     assert(node);
     switch(node->type){
+        case NODE_TEXT:
+            printf("<NODE_TEXT value=\"%s\">", node->text.value);
+            break;
+        /*
         case NODE_DEF:
             printf("<NODE_DEF name=\"%s\" ", node->def.name);
             printf("args=[");
@@ -391,32 +374,57 @@ void print_node(struct Node *node) {
             }
             printf("]>");
             break;
+            */
         default: 
         printf("print_node node type not found %s", 
                 node_type_arr[node->type]);
     }
 }
 
-void parse_integer(struct Node * node) {
-    assert(node);
-    node->type = NODE_INT;
-    node->integer.value = atoi(consume(integer)->val);
-}
-
-void parse_id(struct Node * node) {
-    assert(node);
-    node->type = NODE_ID;
-    strcpy(node->id.value, consume(id)->val);
-}
-
-void parse_var_ref(struct Node * node) {
-    assert(node);
-    node->type = NODE_VAR_REF;
-    strcpy(node->var_ref.name, consume(id)->val);
-}
 void * allocate(int size) {
     return malloc(size);
 }
+void parse_text(struct Node * node) {
+    assert(node);
+    node->type = NODE_TEXT;
+    // find how many text is in a row.
+    int i = 0;
+    /*
+    for(;;i += 2) {
+        if (peek_ahead(eof, i)) break;
+        if (peek_ahead(nl, i) && peek_ahead(nl,i + 1)) break;
+    }
+    */
+    printf("i found %d\n", i/2);
+    Token *text_token = consume(text);
+    node->text.value = allocate(sizeof(void *) * (strlen(text_token->value)));
+    strcpy(node->text.value, text_token->value);
+}
+void parser(struct Node *node) {
+    assert(node);
+    for(;!peek(eof);) {
+        if (peek(text)) {
+            printf("see text\n");
+            parse_text(node);
+        }
+        if (peek(nl)) {
+            printf("see nl\n");
+            consume(nl);
+        }
+        // ok
+        //consume(op);
+        //consume(id);
+        /*
+        if (peek(def)) {
+            parse_def(node);
+            printf("\n");
+        }
+        */
+    }
+    consume(eof);
+}
+#endif
+#if 0
 int args_til(TokenType type) {
     int arg_count = 0;
     for(int i = 0;!peek_ahead(rparen, i);++i) {
@@ -507,20 +515,6 @@ void parse_def(struct Node * node) {
     consume(end);
 }
 
-void parser(struct Node *node) {
-    assert(node);
-    for(;!peek(eof);) {
-        consume(op);
-        consume(id);
-        /*
-        if (peek(def)) {
-            parse_def(node);
-            printf("\n");
-        }
-        */
-    }
-    consume(eof);
-}
 void generate_js(struct Node *node) {
     assert(node);
     switch(node->type){
@@ -586,10 +580,10 @@ int main() {
             printf("%s()\n", token_type_arr[token->type]);
         }
         else {
-            printf("%s(%s) ", token_type_arr[token->type], token->val);
+            printf("%s(%s) ", token_type_arr[token->type], token->value);
         }
     }
-#if 0
+#if 1
     struct Node node = {};
     parser(&node);
     printf("\nNode:\n");
