@@ -7,7 +7,6 @@ int debug_log_end   = 0;
 #define debug_log_max 20
 char debug_log[debug_log_max];
 void debug(const char * arg){
-
     for(int i = 0;arg[i] != '\0';++i) {
         debug_log[debug_log_end] = arg[i];
         debug_log_end++;
@@ -45,17 +44,15 @@ void print_debug_log(){
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 #define set(arr, idx, val, max) { assert(idx < max); arr[idx] = val;}
 
-
 /*************************************************************
 *********************** TOKENIZER **************************** 
 *************************************************************/
 
+#define CODE_FILE_MAX 500
 #define TOKEN_ARR_MAX 100
 #define TOKEN_RULES_MAX 6
 
 #define REGEX_ARR_COUNT 20
-
-#define CODE_STR_MAX 400
 
 #define REGEX_STR_MAX 50
 #define TOKEN_STR_MAX 100
@@ -76,13 +73,15 @@ void print_debug_log(){
     t(code)  \
     t(bold)  \
     t(italic)  \
+    t(config)  \
     t(text)  \
-    t(link_text_start)  \
-    t(link_text_end)  \
-    t(link_href_start)  \
-    t(link_href_end)  \
-    t(nl)    \
-    t(eof)
+    t(obracket)  \
+    t(cbracket)  \
+    t(oparen)  \
+    t(cparen)  \
+    t(exclamation)  \
+    t(eof)  \
+    t(nl)    
 
 typedef enum {
     TOKENS(CREATE_ENUM)
@@ -102,13 +101,15 @@ char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
     "```",                 
     "**",                 
     "_",                 
+    "[:config:]",
     "[:text:]",
     "[",                 
     "]",                 
     "(",                 
     ")",                 
+    "!",
+    "[:eof:]",
     "\n",
-    "[:eof:]"
 };
 
 #define CREATE_STRINGS(name) #name,
@@ -125,19 +126,6 @@ typedef struct {
     TokenType type;
     char str[TOKEN_RULE_STR_MAX];
 } TokenRule;
-
-int is_boundary(const char c) {
-    if (c == ' ')   return 1;
-    if (c == '\n')  return 1;
-    if (c == ';')   return 1;
-    if (c == '\0')   return 1;
-    return 0;
-}
-
-int is_whitespace(const char c) {
-    if (c == '\n')  return 1;
-    return 0;
-}
 
 int is_digit(const char c) {
     if (c >= '0' && c <= '9') return 1;
@@ -169,28 +157,10 @@ int contains(const char c, const char * matches) {
     return 0;
 }
 
-int is_link(const char * c) {
-    int i = 0;
-    if (c[i] != '[') return 0;
-    ++i;
-    for(;;++i){
-        if (contains(c[i], "()["))  return 0;
-        if (is_eol(c[i]))           return 0;
-        if( c[i] == ']')            break;
-    }
-    ++i;
-    if (c[i] != '(') return 0;
-    ++i;
-    for(;;++i){
-        if (contains(c[i], "([]"))  return 0;
-        if (is_eol(c[i]))           return 0;
-        if( c[i] == ')')            break;
-    }
-    ++i;
-    return i;
+int is_inline_tag(const char c) {
+    if (contains(c, "!()[]"))  return 1;
+    return 0;
 }
-
-
 
 // @TODO - just make this return the number of matched characters
 int is_match(const char * c1, const char * c2) {
@@ -202,161 +172,66 @@ int is_match(const char * c1, const char * c2) {
 }
 
 int is_bold(const char * c) {
-    int i = 0;
-    if(!is_match(&c[i], "**")) return 0;
-    i += 2;
-    for (;;++i) {
-        if(c[i] == '\0') return 0;
-        if(c[i] == '\n') return 0;
-        if(is_match(&c[i], "**")) break;
-    }
-    // bold must be at least one chacter
-    if (i == 2) return 0;
-
-    return 1;
+    if(is_match(c, "**")) return 1;
+    return 0;
 }
 
-int is_italic(const char * c) {
-    int i = 0;
-    if(!is_match(&c[i], "_")) return 0;
-    i += 1;
-    for (;;++i) {
-        if(c[i] == '\0') return 0;
-        if(c[i] == '\n') return 0;
-        if(is_match(&c[i], "_")) break;
-    }
-    // bold must be at least one chacter
-    if (i == 1) return 0;
-
-    return 1;
+int is_italic_char(const char c) {
+    if(c == '_') return 1;
+    return 0;
 }
 
-int is_quote(const char * c) {
-    int i = 0;
-    if(!is_match(&c[i], ">")) return 0;
-    i += 1;
-    for (;;++i) {
-        if(c[i] == '\0') return 0;
-        if(c[i] == '\n') return 0;
-        if(is_match(&c[i], "\n")) break;
-    }
-    // bold must be at least one chacter
-    if (i == 1) return 0;
-
-    return 1;
-}
 int capture_match(const char * code, const char * regex, char * capture_string) {
     int regex_idx   = 0;
     int code_idx    = 0;
+    capture_string[0] = '\0';
     for (;;) {
-        if (regex[regex_idx] == '\0') {
-            break;
-        }
         //printf("\n'%c' == '%c' rule: %s     ", 
          //       code[code_idx],regex[regex_idx], regex);
-        if (is_match(&regex[regex_idx], "[:whitespace:]")) { 
-            if(!is_whitespace(code[code_idx])) {
-                return 0;
-            }
-            inc(code_idx, 1, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:whitespace:]"), REGEX_STR_MAX);
+        if (regex[regex_idx] == '\0') {
+            // remember, this is the end of the regex string
+            // not the end of the file
+            break;
         }
-        else if (is_match(&regex[regex_idx], "[:id:]+")) { 
-            int alpha_c = 0;
-            for (;code[code_idx + alpha_c] != ' ';++alpha_c){};
-            if (alpha_c == 0) return 0; // must match at least one char
-            inc(code_idx, alpha_c, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:id:]+"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:alpha:]+")) { 
-            int alpha_c = 0;
-            for (;is_alpha(code[code_idx + alpha_c]);++alpha_c){};
-            if (alpha_c == 0) return 0; // must match at least one char
-            inc(code_idx, alpha_c, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:alpha:]+"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:tileol:]+")) {
-            debug("tileol match\n");
+        else if (is_match(&regex[regex_idx], "[:config:]")) {
+            debug("config match\n");
+            // capture text until you find a link or the end of the line
             int i = 0;
-            for (;!is_eol(code[code_idx + i]);++i){};
-            if (i == 0) return 0; // must match at least one char
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:tileol:]+"), REGEX_STR_MAX);
+            if (code[code_idx + i] != ':') return 0;
+            ++i;
+            for(;;++i) {
+                if (is_eol(code[code_idx + i])) break;
+            }
+            if (i == 1) return 0; // must match at least one char
+            inc(code_idx, i, CODE_FILE_MAX);
+            break;
         }
         else if (is_match(&regex[regex_idx], "[:text:]")) {
             debug("text match\n");
             // capture text until you find a link or the end of the line
             int i = 0;
             for(;;++i) {
-                if (is_link(&code[code_idx + i])) break;
+                if (is_inline_tag(code[code_idx + i])) break;
                 if (is_bold(&code[code_idx + i])) break;
-                if (is_italic(&code[code_idx + i])) break;
+                if (is_italic_char(code[code_idx + i])) break;
                 if (is_eol(code[code_idx + i])) break;
 
             }
             if (i == 0) return 0; // must match at least one char
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:text:]"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:link:]")) {
-            // capture text until you find a link or the end of the line
-            int i = is_link(&code[code_idx]);
-            if (i == 0) return 0;
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:link:]"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:code:]")) { 
-            int i = 0;
-            if (!is_match(&code[code_idx], "```")) return 0;
-            i++;
-            for (;!is_match(&code[code_idx + i], "```");++i){};
-            i += strlen("```");
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:code:]"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:bold:]")) { 
-            int i = 0;
-            if (!is_bold(&code[code_idx])) return 0;
-            i++;
-            for (;!is_match(&code[code_idx + i], "**");++i){};
-            i += 2; // lenght of **
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:bold:]"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:italic:]")) { 
-            int i = 0;
-            if (!is_italic(&code[code_idx])) return 0;
-            i += 1;
-            for (;!is_match(&code[code_idx + i], "_");++i){};
-            i += 1; // lenght of __
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:italic:]"), REGEX_STR_MAX);
-        }
-        else if (is_match(&regex[regex_idx], "[:quote:]")) { 
-            // loop through each line
-            int i = 0;
-            for (;;) {
-                if (!is_quote(&code[code_idx])) break;
-                // match till end of the line.
-                for (;is_eol(code[code_idx + i]);++i);
-                i += 1;  // quotes include eol
-            }
-            if (i == 0) return 0; // must match at least a character
-            inc(code_idx, i, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:quote:]"), REGEX_STR_MAX);
+            inc(code_idx, i, CODE_FILE_MAX);
+            break;
         }
         else if (is_match(&regex[regex_idx], "[:eof:]")) { 
+            // this never matches..
             if(code[code_idx] != '\0') {
                 return 0;
             }
-            inc(code_idx, 1, CODE_STR_MAX);
-            inc(regex_idx, strlen("[:eof:]"), REGEX_STR_MAX);
+            inc(code_idx, 1, CODE_FILE_MAX);
             break;
         }
         else if (code[code_idx] == regex[regex_idx]) {
-            // matches header
             inc(regex_idx, 1, REGEX_STR_MAX);
-            inc(code_idx, 1, CODE_STR_MAX); 
+            inc(code_idx, 1, CODE_FILE_MAX); 
         }
         else {
             // no match
@@ -376,9 +251,9 @@ Token * tokens;
 void tokenizer(const char * code) {
     int token_idx = 0;
     int code_idx = 0;
-    char capture_string[CAPTURE_STR_MAX] = {0};
-    for (;code[code_idx] != '\0';) {
-        int match_found;
+    for (;;) {
+        int match_found = 0;
+        char capture_string[CAPTURE_STR_MAX] = {0};
         for (int regex_idx= 0; regex_idx < REGEX_ARR_MAX; ++regex_idx) {
             match_found = capture_match(
                     &code[code_idx], regex_arr[regex_idx], capture_string);
@@ -389,8 +264,8 @@ void tokenizer(const char * code) {
                 token->val = malloc(strlen(capture_string)+1);
                 strcpy(token->val, capture_string);
                 inc(token_idx, 1, TOKEN_ARR_MAX);
-                inc(code_idx, strlen(capture_string), CODE_STR_MAX);
-                for(;is_whitespace(code[code_idx]); ++code_idx);
+                inc(code_idx, strlen(capture_string), CODE_FILE_MAX);
+                if (token->type == eof) return;
                 break;
             }
         }// tokens
@@ -413,8 +288,6 @@ void tokenizer(const char * code) {
             assert(0);
         } // error
     }// code
-    tokens[token_idx].type  = eof;
-    token_idx++;
 }
 
 #if 0
@@ -685,9 +558,10 @@ void generate_js(struct Node *node) {
 }
 #endif
 
-#define CODE_FILE_MAX 400
 int main() {
+
     tokens = malloc(TOKEN_ARR_MAX * sizeof(Token));
+
 
     char code[CODE_FILE_MAX];
     {
@@ -708,7 +582,12 @@ int main() {
     tokenizer(code);
     printf("\nTokens:\n");
     for(Token *token = tokens; token->type != eof; token = &token[1]) {
-        printf("%s(%s)\n", token_type_arr[token->type], token->val);
+        if (token->type == nl) {
+            printf("%s()\n", token_type_arr[token->type]);
+        }
+        else {
+            printf("%s(%s) ", token_type_arr[token->type], token->val);
+        }
     }
 #if 0
     struct Node node = {};

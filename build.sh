@@ -1,4 +1,3 @@
 set -e
 clear
-gcc -g -Wall -Wextra -Werror main.c -o main
-./main
+gcc -g -Wall -Wextra main.c -o main

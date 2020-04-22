@@ -10,7 +10,7 @@
 ```
 # this out
 
-# testing ```
+# testing 
 
 ## heading 2
 ### heading 3
@@ -21,5 +21,6 @@ __
 pretty **good right**!
 > blockquote # > goes here
 This _is a_ [link to an article](http://link.com/stuff?=33#)
+This _is a_ ![photo](http://link.com/photo.img)
 testing _again_
 
