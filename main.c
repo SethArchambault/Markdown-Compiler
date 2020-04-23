@@ -4,8 +4,9 @@
 
 int debug_log_start = 0;
 int debug_log_end   = 0;
-#define debug_log_max 20
+#define debug_log_max 200
 char debug_log[debug_log_max];
+/*
 void debug(const char * arg){
     for(int i = 0;arg[i] != '\0';++i) {
         debug_log[debug_log_end] = arg[i];
@@ -21,29 +22,32 @@ void debug(const char * arg){
         }
     }
 }
+*/
+#define debug(arr) {}
+
 
 void print_debug_log(){
     int i = debug_log_start;
     for(;;) {
-        if (debug_log[i] == '\0') {
-            break;
-        }
+        if (debug_log[i] == '\0') break;
+        if (i == debug_log_end) break;
+
         printf("%c", debug_log[i]);
         i++;
-        if (i == debug_log_end) {
-            break;
-        }
-        if (i == debug_log_max) {
-            i = 0;
-        }
+        if (i == debug_log_max) i = 0;
     }
 }
 
-#define assert(cond) {if (!(cond)){ print_debug_log(); printf("%s:%d:5: error: Assert failed%s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
+#define assert(cond) {if (!(cond)){ print_debug_log(); printf("%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
 #define assert_d(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %d\n", #cond, arg); *(volatile int * )0 = 0;}}
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 #define set(arr, idx, val, max) { assert(idx < max); arr[idx] = val;}
 
+void string_cat(char * t, char * str, int max){
+    int needed = strlen(str) + strlen(t);
+    assert_d(needed < max, needed);
+    strcat(t, str);
+}
 /*************************************************************
 *********************** TOKENIZER **************************** 
 *************************************************************/
@@ -60,28 +64,30 @@ void print_debug_log(){
 
 #define CAPTURE_STR_MAX 200
 
+#define TEMP_MAX 200
+
 #define CREATE_ENUM(name)   name,
 
-#define TOKENS(t)                   \
-    t(h6)    \
-    t(h5)    \
-    t(h4)    \
-    t(h3)    \
-    t(h2)    \
-    t(h1)    \
-    t(quote) \
-    t(code)  \
-    t(bold)  \
-    t(italic)  \
-    t(config)  \
-    t(text)  \
-    t(obracket)  \
-    t(cbracket)  \
-    t(oparen)  \
-    t(cparen)  \
-    t(exclamation)  \
-    t(eof)  \
-    t(nl)    
+#define TOKENS(t)       \
+    t(eof)              \
+    t(h6)               \
+    t(h5)               \
+    t(h4)               \
+    t(h3)               \
+    t(h2)               \
+    t(h1)               \
+    t(quote)            \
+    t(code)             \
+    t(bold)             \
+    t(italic)           \
+    t(config)           \
+    t(text)             \
+    t(obracket)         \
+    t(cbracket)         \
+    t(oparen)           \
+    t(cparen)           \
+    t(exclamation)      \
+    t(nl)               \
 
 typedef enum {
     TOKENS(CREATE_ENUM)
@@ -91,6 +97,7 @@ typedef enum {
 #define REGEX_ARR_MAX TokenTypeEnd 
 
 char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
+    "[:eof:]",
     "###### ",  
     "##### ",  
     "#### ",  
@@ -108,7 +115,6 @@ char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
     "(",                 
     ")",                 
     "!",
-    "[:eof:]",
     "\n",
 };
 
@@ -198,18 +204,18 @@ int capture_match(const char * code, const char * regex, char * capture_string) 
                 if (is_bold(&code[code_idx + i])) break;
                 if (is_italic_char(code[code_idx + i])) break;
                 if (is_eol(code[code_idx + i])) break;
-
             }
             if (i == 0) return 0; // must match at least one char
             inc(code_idx, i, CODE_FILE_MAX);
             break;
         }
         else if (is_match(&regex[regex_idx], "[:eof:]")) { 
-            // this never matches..
-            if(code[code_idx] != '\0') {
-                return 0;
-            }
-            inc(code_idx, 1, CODE_FILE_MAX);
+            int i = 0;
+            if(code[code_idx + i] != '\n') return 0;
+            ++i;
+            if(code[code_idx + i] != '\0') return 0;
+            ++i;
+            inc(code_idx, i, CODE_FILE_MAX);
             break;
         }
         else if (code[code_idx] == regex[regex_idx]) {
@@ -229,8 +235,20 @@ int capture_match(const char * code, const char * regex, char * capture_string) 
     capture_string[i] = '\0';
     return 1;
 }
-Token * tokens;
 
+// Global Variables
+Token * tokens;
+void * memory;
+int memory_allocated = 3400;
+int memory_idx = 0;
+
+void * allocate(int memory_needed) {
+    int memory_free = (memory_allocated-memory_idx);
+    assert_d(memory_needed < memory_free, memory_allocated + memory_needed);
+    void * block = &memory[memory_idx];
+    memory_idx += memory_needed;
+    return block;
+}
 void tokenizer(const char * code) {
     int token_idx = 0;
     int code_idx = 0;
@@ -244,7 +262,7 @@ void tokenizer(const char * code) {
                 Token * token = &tokens[token_idx];
                 token->type  = regex_idx;
                 assert(strlen(capture_string) < CAPTURE_STR_MAX);
-                token->value = malloc(strlen(capture_string)+1);
+                token->value = allocate(strlen(capture_string)+1);
                 strcpy(token->value, capture_string);
                 inc(token_idx, 1, TOKEN_ARR_MAX);
                 inc(code_idx, strlen(capture_string), CODE_FILE_MAX);
@@ -301,8 +319,13 @@ int peek(TokenType type) {
 }
 
 
-#define NODES(f) \
-    f(NODE_TEXT)
+#define NODES(f)        \
+    f(NODE_UNDEFINED)   \
+    f(NODE_TEXT)        \
+    f(NODE_BOLD)        \
+    f(NODE_ITALIC)      \
+    f(NODE_LINK)        \
+
 
 typedef enum {
     NODES(CREATE_ENUM)
@@ -318,6 +341,21 @@ char node_type_arr[NodeTypeEnd][TOKEN_STR_MAX] = {
 struct Node{
     NodeType type;
     union {
+        struct { // NODE_TEXT
+            char *value;
+            struct Node * inside;
+            struct Node * next;
+        } text;
+        struct { // NODE_BOLD
+            struct Node * inside;
+        } bold;
+        struct { // NODE_LINK
+            struct Node * text;
+            char * href;
+        } link;
+        struct { // NODE_ITALIC
+            struct Node * inside;
+        } italic;
         struct {
             char value[TOKEN_STR_MAX];
         }id;
@@ -331,17 +369,33 @@ struct Node{
             char name[TOKEN_STR_MAX];
             struct Node ** arg_exprs;
         } call;
-        struct { // NODE_TEXT
-            char *value;
-        } text;
     };
 };
 
-void print_node(struct Node *node) {
+void * print_node(char * t, struct Node *node) {
     assert(node);
     switch(node->type){
+        case NODE_BOLD:
+            string_cat(t, "<NODE_BOLD inside=", TEMP_MAX);
+            print_node(t, node->bold.inside);
+            string_cat(t, " >", TEMP_MAX);
+            break;
+        case NODE_ITALIC:
+            string_cat(t, "<NODE_ITALIC inside=", TEMP_MAX);
+            print_node(t, node->italic.inside);
+            string_cat(t, " >", TEMP_MAX);
+            break;
         case NODE_TEXT:
-            printf("<NODE_TEXT value=\"%s\">", node->text.value);
+            string_cat(t, "<NODE_TEXT value=\"", TEMP_MAX);
+            string_cat(t, node->text.value, TEMP_MAX);
+            string_cat(t, "\">", TEMP_MAX);
+            break;
+        case NODE_LINK:
+            string_cat(t, "<NODE_LINK text=", TEMP_MAX);
+            print_node(t, node->link.text);
+            string_cat(t, " href=\"", TEMP_MAX);
+            string_cat(t, node->link.href, TEMP_MAX);
+            string_cat(t, "\">", TEMP_MAX);
             break;
         /*
         case NODE_DEF:
@@ -379,47 +433,83 @@ void print_node(struct Node *node) {
         printf("print_node node type not found %s", 
                 node_type_arr[node->type]);
     }
+    return t;
 }
 
-void * allocate(int size) {
-    return malloc(size);
+
+void parse_any();
+
+void parse_italic(struct Node * node) {
+    assert(node);
+    node->type = NODE_ITALIC;
+    consume(italic);
+    node->italic.inside = allocate(sizeof(struct Node));
+    parse_any(node->italic.inside);
+    consume(italic);
 }
+
+void parse_link(struct Node * node) {
+    assert(node);
+    node->type = NODE_LINK;
+    consume(obracket);
+    node->link.text = allocate(sizeof(struct Node));
+    parse_any(node->link.text);
+    consume(cbracket);
+    consume(oparen);
+    Token *href_token = consume(text);
+    node->link.href = allocate(strlen(href_token->value)+1);
+    strcpy(node->link.href, href_token->value);
+    consume(cparen);
+}
+void parse_bold(struct Node * node) {
+    assert(node);
+    node->type = NODE_BOLD;
+    consume(bold);
+    node->bold.inside = allocate(sizeof(struct Node));
+    parse_any(node->bold.inside);
+    consume(bold);
+}
+
 void parse_text(struct Node * node) {
     assert(node);
     node->type = NODE_TEXT;
-    // find how many text is in a row.
-    int i = 0;
-    /*
-    for(;;i += 2) {
-        if (peek_ahead(eof, i)) break;
-        if (peek_ahead(nl, i) && peek_ahead(nl,i + 1)) break;
-    }
-    */
-    printf("i found %d\n", i/2);
     Token *text_token = consume(text);
-    node->text.value = allocate(sizeof(void *) * (strlen(text_token->value)));
+    node->text.value = allocate(strlen(text_token->value)+1);
     strcpy(node->text.value, text_token->value);
+    if (peek(nl)) {
+        consume(nl);
+        node->text.next = allocate(sizeof (struct Node));
+        parse_any(node->text.next);
+    }
 }
+void parse_any(struct Node *node) {
+    switch(tokens->type) {
+        case obracket:
+            parse_link(node);
+            break;
+        case bold:
+            parse_bold(node);
+            break;
+        case italic:
+            parse_italic(node);
+            break;
+        case text:
+            parse_text(node);
+            break;
+        case nl:
+            consume(nl);
+            break;
+        default:
+            printf("parse any: token type not found: %s\n", token_type_arr[tokens->type]);
+            assert(0);
+    }
+}
+
+
 void parser(struct Node *node) {
     assert(node);
     for(;!peek(eof);) {
-        if (peek(text)) {
-            printf("see text\n");
-            parse_text(node);
-        }
-        if (peek(nl)) {
-            printf("see nl\n");
-            consume(nl);
-        }
-        // ok
-        //consume(op);
-        //consume(id);
-        /*
-        if (peek(def)) {
-            parse_def(node);
-            printf("\n");
-        }
-        */
+        parse_any(node);
     }
     consume(eof);
 }
@@ -553,17 +643,17 @@ void generate_js(struct Node *node) {
 #endif
 
 int main() {
+    memory = malloc(memory_allocated);
+    tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
 
-    tokens = malloc(TOKEN_ARR_MAX * sizeof(Token));
 
-
-    char code[CODE_FILE_MAX];
+    char * code;
     {
-        FILE * f = fopen("program.txt", "r");
+        FILE * f = fopen("markdown.txt", "r");
         assert(f);
         fseek(f, 0, SEEK_END);
         long int length = ftell(f);
-        assert(length < CODE_FILE_MAX);
+        code = allocate(length+1);
         fseek(f, 0, SEEK_SET);
         fread(code, length, 1, f );
         fclose(f);
@@ -587,12 +677,14 @@ int main() {
     struct Node node = {};
     parser(&node);
     printf("\nNode:\n");
-    print_node(&node);
+    char temp[TEMP_MAX];
+    temp[0] = '\0';
+    printf("%s\n", print_node(temp, &node));
+    printf("memory used %d", memory_idx);
 #endif
 #if 0
     printf("\n\njs:\n");
     generate_html(&node);
 #endif 
     return 0;
-
 }
