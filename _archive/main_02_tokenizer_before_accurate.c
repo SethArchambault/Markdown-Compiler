@@ -38,7 +38,7 @@ void print_debug_log(){
     }
 }
 
-#define assert(cond) {if (!(cond)){ print_debug_log(); printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
+#define assert(cond) {if (!(cond)){ print_debug_log(); printf("%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
 #define assert_d(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %d\n", #cond, arg); *(volatile int * )0 = 0;}}
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 #define set(arr, idx, val, max) { assert(idx < max); arr[idx] = val;}
@@ -77,15 +77,15 @@ void string_cat(char * t, char * str, int max){
     t(h2)               \
     t(h1)               \
     t(quote)            \
-    t(ocode)            \
+    t(code)             \
+    t(bold)             \
+    t(italic)           \
     t(config)           \
     t(text)             \
-    t(obold)            \
-    t(cbold)            \
-    t(oitalic)          \
-    t(citalic)          \
-    t(otagtext)         \
-    t(href)             \
+    t(obracket)         \
+    t(cbracket)         \
+    t(oparen)           \
+    t(cparen)           \
     t(exclamation)      \
     t(nl)               \
 
@@ -105,15 +105,15 @@ char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
     "## ",  
     "# ",  
     "> ",  
-    "[:ocode:]",                 
+    "```",                 
+    "**",                 
+    "_",                 
     "[:config:]",
     "[:text:]",
-    "[:obold:]",                 
-    "[:cbold:]",                 
-    "[:oitalic:]",                 
-    "[:citalic:]",                 
-    "[:otagtext:]",                 
-    "[:href:]",                 
+    "[",                 
+    "]",                 
+    "(",                 
+    ")",                 
     "!",
     "\n",
 };
@@ -146,6 +146,10 @@ int contains(const char c, const char * matches) {
     return 0;
 }
 
+int is_inline_tag(const char c) {
+    if (contains(c, "!()[]"))  return 1;
+    return 0;
+}
 
 // @TODO - just make this return the number of matched characters
 int is_match(const char * c1, const char * c2) {
@@ -156,68 +160,13 @@ int is_match(const char * c1, const char * c2) {
     return 1;
 }
 
-
-struct TokenizerState {
-    int italic_opened;
-    int bold_opened;
-    int tag_text_opened;
-    int tag_href_opened;
-    int code_opened;
-};
-
-struct TokenizerState tokenizer_state = {0};
-
 int is_bold(const char * c) {
-    if(! is_match(c, "**")) return 0;
-    if (tokenizer_state.bold_opened) return 1;
-    int i = 2; // skip matched **
-    for (;;++i) {
-        if (is_eol(c[i])) return 0;
-        if (is_match(&c[i], "**")) break;
-    }
-    if (i <= 2) return 0;
-    return 1;
+    if(is_match(c, "**")) return 1;
+    return 0;
 }
 
-int is_italic_char(const char * c) {
-    int i = 0;
-    if(c[i] != '_') return 0;
-    if (tokenizer_state.italic_opened) return 1;
-    ++i;
-    // search eol for char
-    for(;;++i) {
-        if (is_eol(c[i])) return 0;
-        if (c[i] == '_') break;
-    }
-    if (i <= 1) return 0;
-    return 1; 
-}
-
-int is_inline_tag(const char * c) {
-    // check if valid link exists
-    int i = 0;
-    if (c[i] == ']' && 
-        tokenizer_state.tag_text_opened) {
-            return 1;     
-    }
-
-    if (c[i] == '[') {
-        ++i;
-        // look for closing ](
-        for(;;++i) {
-            if (is_eol(c[i])) return 0;
-            if (c[i] == '[') return 0;
-            if (is_match(&c[i], "](")) break;
-        }
-        // look for closing )
-        for(;;++i) {
-            if (is_eol(c[i])) return 0;
-            if (c[i] == '[') return 0;
-            if (c[i] == ')') break;
-        }
-        return 1;
-        // check for valid link
-    }
+int is_italic_char(const char c) {
+    if(c == '_') return 1;
     return 0;
 }
 
@@ -246,88 +195,18 @@ int capture_match(const char * code, const char * regex, char * capture_string) 
             inc(code_idx, i, CODE_FILE_MAX);
             break;
         }
-        else if (is_match(&regex[regex_idx], "[:ocode:]")){
-            if(!is_match(&code[code_idx], "```")) return 0;
-            int i = 3;
-            for(;;++i) {
-                if (code[code_idx + i] == '\0') return 0;
-                if (is_match(&code[code_idx + i], "```")) break;
-            }
-            i += 3;
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
         else if (is_match(&regex[regex_idx], "[:text:]")) {
             debug("text match\n");
             // capture text until you find a link or the end of the line
             int i = 0;
             for(;;++i) {
-                if (is_inline_tag(&code[code_idx + i])) break;
+                if (is_inline_tag(code[code_idx + i])) break;
                 if (is_bold(&code[code_idx + i])) break;
-                if (is_italic_char(&code[code_idx + i])) break;
+                if (is_italic_char(code[code_idx + i])) break;
                 if (is_eol(code[code_idx + i])) break;
             }
             if (i == 0) return 0; // must match at least one char
             inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:obold:]")){
-            if( is_match(&code[code_idx], "**") &&
-                !tokenizer_state.bold_opened) 
-            {
-                tokenizer_state.bold_opened = 1;
-                inc(code_idx, 2, CODE_FILE_MAX);
-                break;
-            }
-            return 0;
-        }
-        else if (is_match(&regex[regex_idx], "[:cbold:]")){
-            if(!is_match(&code[code_idx], "**")) return 0;
-            if(!tokenizer_state.bold_opened) return 0;
-            tokenizer_state.bold_opened = 0;
-            inc(code_idx, 2, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:oitalic:]")){
-            if(code[code_idx] != '_') return 0;
-            if(tokenizer_state.italic_opened) return 0;
-            tokenizer_state.italic_opened = 1;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:citalic:]")){
-            if(code[code_idx] != '_') return 0;
-            if(!tokenizer_state.italic_opened) return 0;
-            tokenizer_state.italic_opened = 0;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:otagtext:]")){
-            if(code[code_idx] != '[') return 0;
-            if(tokenizer_state.tag_text_opened) return 0;
-            tokenizer_state.tag_text_opened = 1;
-            printf("tag text opened\n");
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:href:]")){
-            if(!is_match(&code[code_idx], "](")) return 0;
-            if(tokenizer_state.tag_text_opened == 0) return 0;
-            tokenizer_state.tag_text_opened = 0;
-            int i = 2;
-            for (;;++i) {
-                if (is_eol(code[code_idx+i])) return 0;
-                if (code[code_idx+i] == ')') break;
-            }
-            ++i;
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:ctaghref:]")){
-            if(code[code_idx] != ')') return 0;
-            if(!tokenizer_state.tag_href_opened) return 0;
-            tokenizer_state.tag_text_opened = 0;
-            inc(code_idx, 1, CODE_FILE_MAX);
             break;
         }
         else if (is_match(&regex[regex_idx], "[:eof:]")) { 
@@ -386,8 +265,6 @@ void tokenizer(const char * code) {
                 token->value = allocate(strlen(capture_string)+1);
                 strcpy(token->value, capture_string);
                 inc(token_idx, 1, TOKEN_ARR_MAX);
-                // @coupling: I can't increment code_idx more than the 
-                // capture string size, which I want to do.
                 inc(code_idx, strlen(capture_string), CODE_FILE_MAX);
                 if (token->type == eof) return;
                 break;
@@ -491,34 +368,42 @@ struct Node{
 
 void parse_any();
 
+int italic_opened = 0;
 void parse_italic(struct Node * node) {
     assert(node);
+    italic_opened = 1;
     node->type = NODE_ITALIC;
-    consume(oitalic);
+    consume(italic);
     node->italic.inside = allocate(sizeof(struct Node));
     parse_any(node->italic.inside);
-    consume(citalic);
+    consume(italic);
+    italic_opened = 0;
 }
 
 void parse_link(struct Node * node) {
     assert(node);
     node->type = NODE_LINK;
-    consume(otagtext);
+    consume(obracket);
     node->link.text = allocate(sizeof(struct Node));
     parse_any(node->link.text);
-    Token * href_token = consume(href);
+    consume(cbracket);
+    consume(oparen);
+    Token *href_token = consume(text);
     node->link.href = allocate(strlen(href_token->value)+1);
     strcpy(node->link.href, href_token->value);
-    //consume(ctaghref);
+    consume(cparen);
 }
+int bold_opened = 0;
 
 void parse_bold(struct Node * node) {
     assert(node);
+    bold_opened = 1;
     node->type = NODE_BOLD;
-    consume(obold);
+    consume(bold);
     node->bold.inside = allocate(sizeof(struct Node));
     parse_any(node->bold.inside);
-    consume(cbold);
+    consume(bold);
+    bold_opened = 0;
 }
 
 
@@ -536,33 +421,33 @@ void parse_nl(struct Node * node) {
 }
 void parse_code(struct Node * node) {
     assert(node);
+    consume(code);
     node->type = NODE_CODE;
-    Token * code_token = consume(ocode);
-    node->code.value = allocate(strlen(code_token->value)+1);
-    strcpy(node->code.value, code_token->value);
+    parse_any(node->code.value);
+    consume(code);
 }
 
 
 void parse_any(struct Node *node) {
     switch(tokens->type) {
-        case otagtext:
+        case obracket:
             parse_link(node);
             break;
-        case ocode:
-            parse_code(node);
-            break;
-        case href:
+        case cbracket: {
             return;
-        case obold:
+        }
+        case bold:
+            if (bold_opened) {
+                return;
+            }
             parse_bold(node);
             break;
-        case cbold:
-            return;
-        case oitalic:
+        case italic:
+            if (italic_opened) {
+                return;
+            }
             parse_italic(node);
             break;
-        case citalic:
-            return;
         case text:
             parse_text(node);
             break;
@@ -622,12 +507,6 @@ void print_node(char * t, struct Node *node, int indent) {
             string_cat(t, node->link.href, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
             print_node(t, node->link.text, inside_indent);
-            break;
-        }
-        case NODE_CODE: {
-            string_cat(t, "CODE value=\"", TEMP_MAX);
-            string_cat(t, node->text.value, TEMP_MAX);
-            string_cat(t, "\"", TEMP_MAX);
             break;
         }
         case NODE_NL: {
