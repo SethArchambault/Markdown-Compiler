@@ -77,13 +77,14 @@ void string_cat(char * t, char * str, int max){
     t(h2)               \
     t(h1)               \
     t(quote)            \
-    t(ocode)            \
+    t(code)            \
     t(config)           \
     t(text)             \
     t(obold)            \
     t(cbold)            \
     t(oitalic)          \
     t(citalic)          \
+    t(otagimage)        \
     t(otagtext)         \
     t(href)             \
     t(exclamation)      \
@@ -105,13 +106,14 @@ char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
     "## ",  
     "# ",  
     "> ",  
-    "[:ocode:]",                 
+    "[:code:]",                 
     "[:config:]",
     "[:text:]",
     "[:obold:]",                 
     "[:cbold:]",                 
     "[:oitalic:]",                 
     "[:citalic:]",                 
+    "[:otagimage:]",                 
     "[:otagtext:]",                 
     "[:href:]",                 
     "!",
@@ -200,25 +202,23 @@ int is_inline_tag(const char * c) {
         tokenizer_state.tag_text_opened) {
             return 1;     
     }
-
-    if (c[i] == '[') {
-        ++i;
-        // look for closing ](
-        for(;;++i) {
-            if (is_eol(c[i])) return 0;
-            if (c[i] == '[') return 0;
-            if (is_match(&c[i], "](")) break;
-        }
-        // look for closing )
-        for(;;++i) {
-            if (is_eol(c[i])) return 0;
-            if (c[i] == '[') return 0;
-            if (c[i] == ')') break;
-        }
-        return 1;
-        // check for valid link
+    if (!is_match(&c[i], "![") && c[i] != '[') return 0;
+    if (is_match(&c[i], "![")) ++i;
+    ++i;
+    // look for closing ](
+    for(;;++i) {
+        if (is_eol(c[i])) return 0;
+        if (c[i] == '[') return 0;
+        if (is_match(&c[i], "](")) break;
     }
-    return 0;
+    // look for closing )
+    for(;;++i) {
+        if (is_eol(c[i])) return 0;
+        if (c[i] == '[') return 0;
+        if (c[i] == ')') break;
+    }
+    return 1;
+    // check for valid link
 }
 
 int capture_match(const char * code, const char * regex, char * capture_string) {
@@ -246,7 +246,7 @@ int capture_match(const char * code, const char * regex, char * capture_string) 
             inc(code_idx, i, CODE_FILE_MAX);
             break;
         }
-        else if (is_match(&regex[regex_idx], "[:ocode:]")){
+        else if (is_match(&regex[regex_idx], "[:code:]")){
             if(!is_match(&code[code_idx], "```")) return 0;
             int i = 3;
             for(;;++i) {
@@ -302,11 +302,17 @@ int capture_match(const char * code, const char * regex, char * capture_string) 
             inc(code_idx, 1, CODE_FILE_MAX);
             break;
         }
+        else if (is_match(&regex[regex_idx], "[:otagimage:]")){
+            if(!is_match(&code[code_idx], "![")) return 0;
+            if(tokenizer_state.tag_text_opened) return 0;
+            tokenizer_state.tag_text_opened = 1;
+            inc(code_idx, 2, CODE_FILE_MAX);
+            break;
+        }
         else if (is_match(&regex[regex_idx], "[:otagtext:]")){
             if(code[code_idx] != '[') return 0;
             if(tokenizer_state.tag_text_opened) return 0;
             tokenizer_state.tag_text_opened = 1;
-            printf("tag text opened\n");
             inc(code_idx, 1, CODE_FILE_MAX);
             break;
         }
@@ -448,6 +454,7 @@ int peek(TokenType type) {
     f(NODE_BOLD)        \
     f(NODE_ITALIC)      \
     f(NODE_LINK)        \
+    f(NODE_IMAGE)       \
     f(NODE_NL)          \
     f(NODE_CODE)        \
 
@@ -478,6 +485,10 @@ struct Node{
             struct Node * text;
             char * href;
         } link;
+        struct { // NODE_IMAGE
+            struct Node * text;
+            char * href;
+        } image;
         struct { // NODE_LINK
             char * value;
         } code;
@@ -509,7 +520,16 @@ void parse_link(struct Node * node) {
     Token * href_token = consume(href);
     node->link.href = allocate(strlen(href_token->value)+1);
     strcpy(node->link.href, href_token->value);
-    //consume(ctaghref);
+}
+void parse_image(struct Node * node) {
+    assert(node);
+    node->type = NODE_IMAGE;
+    consume(otagimage);
+    node->image.text = allocate(sizeof(struct Node));
+    parse_any(node->image.text);
+    Token * href_token = consume(href);
+    node->image.href = allocate(strlen(href_token->value)+1);
+    strcpy(node->image.href, href_token->value);
 }
 
 void parse_bold(struct Node * node) {
@@ -537,7 +557,7 @@ void parse_nl(struct Node * node) {
 void parse_code(struct Node * node) {
     assert(node);
     node->type = NODE_CODE;
-    Token * code_token = consume(ocode);
+    Token * code_token = consume(code);
     node->code.value = allocate(strlen(code_token->value)+1);
     strcpy(node->code.value, code_token->value);
 }
@@ -548,7 +568,10 @@ void parse_any(struct Node *node) {
         case otagtext:
             parse_link(node);
             break;
-        case ocode:
+        case otagimage:
+            parse_image(node);
+            break;
+        case code:
             parse_code(node);
             break;
         case href:
@@ -612,7 +635,7 @@ void print_node(char * t, struct Node *node, int indent) {
             break;
         }
         case NODE_TEXT: {
-            string_cat(t, "TEXT value=\"", TEMP_MAX);
+            string_cat(t, "TEXT \"", TEMP_MAX);
             string_cat(t, node->text.value, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
             break;
@@ -624,10 +647,15 @@ void print_node(char * t, struct Node *node, int indent) {
             print_node(t, node->link.text, inside_indent);
             break;
         }
-        case NODE_CODE: {
-            string_cat(t, "CODE value=\"", TEMP_MAX);
-            string_cat(t, node->text.value, TEMP_MAX);
+        case NODE_IMAGE: {
+            string_cat(t, "IMAGE href=\"", TEMP_MAX);
+            string_cat(t, node->link.href, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
+            print_node(t, node->link.text, inside_indent);
+            break;
+        }
+        case NODE_CODE: {
+            string_cat(t, "CODE", TEMP_MAX);
             break;
         }
         case NODE_NL: {
