@@ -70,14 +70,9 @@ void print_debug_log(){
 
 #define TOKENS(t)       \
     t(eof)              \
-    t(h6)               \
-    t(h5)               \
-    t(h4)               \
-    t(h3)               \
-    t(h2)               \
-    t(h1)               \
+    t(header)           \
     t(quote)            \
-    t(code)            \
+    t(code)             \
     t(config)           \
     t(text)             \
     t(obold)            \
@@ -224,17 +219,14 @@ void * allocate(int memory_needed) {
     return block;
 }
 
-void create_token(int type, char * cursor, int start, int end) {
-    printf("creating token %d, %s %d %d\n", token_idx, token_type_arr[type], start, end);
+void create_token(int type, char * cursor, int len) {
+    printf("creating token %d, %s %d\n", token_idx, token_type_arr[type], len);
     Token * token   = &tokens[token_idx];
     token->type     = type;
-    int len = end - start;
     assert(len < CAPTURE_STR_MAX);
     token->value    = allocate(len + 1);
-    int cursor_idx = start;
     for(int i = 0; i < len; ++i) {
-        token->value[i] = cursor[cursor_idx];
-        cursor_idx++;
+        token->value[i] = cursor[i];
     }
     inc(token_idx, 1, TOKEN_ARR_MAX);
 }
@@ -260,7 +252,7 @@ int token_text() {
         if (is_eol(cursor[i])) break;
     }
     if (i == 0) return 0; // must match at least one char
-    create_token(token_type, cursor, 0, i);
+    create_token(token_type, cursor, i);
     inc(input_idx, i, INPUT_MAX);
     return 1;
 }
@@ -268,8 +260,22 @@ int token_text() {
 int token_basic(int token_type, const char * str) {
     char * cursor = &input[input_idx];
     if(!is_match(cursor, str)) return 0;
-    create_token(token_type, cursor, 0, strlen(str));
+    create_token(token_type, cursor, strlen(str));
     inc(input_idx, strlen(str), INPUT_MAX);
+    return 1;
+}
+
+int token_header() {
+    int token_type = header;
+    char * cursor = &input[input_idx];
+    int i = 0;
+    for(;cursor[i] == '#';++i);
+    if (i == 0) return 0;
+    if (i > 6) return 0;
+    if (cursor[i] != ' ') return 0;
+    create_token(token_type, cursor, i);
+    ++i;
+    inc(input_idx, i, INPUT_MAX);
     return 1;
 }
 
@@ -296,7 +302,7 @@ int token_config() {
     }
     if (i == 1) return 0; // must match at least one char
     inc(input_idx, i, INPUT_MAX);
-    create_token(config, cursor, 1, i);
+    create_token(config, &cursor[1], i-1);
     return 1;
 }
 
@@ -311,36 +317,40 @@ int token_toggle(int type, int flag, const char * match, int matching_state) {
 }
 
 int token_href() {
-    int flag = tag_text_opened;
-    char * cursor = &input[input_idx];
-    int start = 2;
-    if(!is_match(cursor, "](")) return 0;
+    int type = href;
+    const char *front   = "](";
+    const char *back    = ")";
+    int front_len       = strlen(front);
+    int back_len        = strlen(back);
+    int flag            = tag_text_opened;
+    char * cursor       = &input[input_idx];
+    if(!is_match(cursor, front)) return 0;
     if(flags[flag] == 0) return 0;
     flags[flag] = 0;
-    int i = 2;
+    int i = front_len;
     for (;;++i) {
         if (is_eol(cursor[i])) return 0;
-        if (cursor[i] == ')') break;
+        if (is_match(&cursor[i], back)) break;
     }
-    create_token(href, cursor, start, i);
-    ++i;
+    create_token(type, &cursor[front_len], i-front_len);
+    i += back_len;
     inc(input_idx, i, INPUT_MAX);
     return 1;
 }
 
 int token_code() {
-    const char * front = "```";
-    const char * back = "```";
-    int front_len = strlen(front);
-    int back_len = strlen(back);
-    char * cursor = &input[input_idx];
+    const char * front  = "```";
+    const char * back   = "```";
+    int front_len       = strlen(front);
+    int back_len        = strlen(back);
+    char * cursor       = &input[input_idx];
     if(!is_match(cursor, front)) return 0;
     int i = front_len;
     for(;;++i) {
         if (cursor[i] == '\0') return 0;
         if (is_match(&cursor[i], back)) break;
     }
-    create_token(code, cursor, front_len, i);
+    create_token(code, &cursor[front_len], i-front_len);
     i += back_len;
     inc(input_idx, i, INPUT_MAX);
     return 1;
@@ -348,24 +358,19 @@ int token_code() {
 
 int match_token_rule(tk) {
     switch(tk) {
-        case href:      return token_href();
-        case otagtext:  return token_toggle(tk, tag_text_opened, "[", 0);
-        case otagimage: return token_toggle(tk, tag_text_opened, "![", 0);
-        case oitalic:   return token_toggle(tk, italic_opened, "_", 0);
-        case citalic:   return token_toggle(tk, italic_opened, "_", 1);
-        case obold:     return token_toggle(tk, bold_opened, "**", 0);
-        case cbold:     return token_toggle(tk, bold_opened, "**", 1);
+        case otagtext:  return token_toggle(tk, tag_text_opened,  "[",  0);
+        case otagimage: return token_toggle(tk, tag_text_opened,  "![", 0);
+        case oitalic:   return token_toggle(tk, italic_opened,    "_",  0);
+        case citalic:   return token_toggle(tk, italic_opened,    "_",  1);
+        case obold:     return token_toggle(tk, bold_opened,      "**", 0);
+        case cbold:     return token_toggle(tk, bold_opened,      "**", 1);
         case quote:     return token_basic(tk, "> ");
-        case code:      return token_code();
-        case config:    return token_config();
-        case h6:        return token_basic(tk, "###### ");
-        case h5:        return token_basic(tk, "##### ");
-        case h4:        return token_basic(tk, "#### ");
-        case h3:        return token_basic(tk, "### ");
-        case h2:        return token_basic(tk, "## ");
-        case h1:        return token_basic(tk, "# ");
-        case eof:       return token_eof();
         case nl:        return token_basic(tk, "\n");
+        case config:    return token_config();
+        case header:    return token_header();
+        case href:      return token_href();
+        case code:      return token_code();
+        case eof:       return token_eof();
         case text:      return token_text();
         default:printf("match - unknown token %s\n", token_type_arr[tk]);
     }
@@ -445,6 +450,7 @@ int peek(TokenType type) {
     f(NODE_IMAGE)       \
     f(NODE_NL)          \
     f(NODE_CODE)        \
+    f(NODE_HEADER)      \
 
 typedef enum {
     NODES(CREATE_ENUM)
@@ -482,6 +488,10 @@ struct Node{
         struct { // NODE_ITALIC
             struct Node * inside;
         } italic;
+        struct { // NODE_H1
+            int level;
+            char * value;
+        } header;
     };
 };
 
@@ -528,6 +538,15 @@ void parse_bold(struct Node * node) {
     consume(cbold);
 }
 
+void parse_header(struct Node * node) {
+    assert(node);
+    Token * header_token = consume(header);
+    node->type = NODE_HEADER;
+    node->header.level = strlen(header_token->value);
+    Token *text_token = consume(text);
+    node->header.value = allocate(strlen(text_token->value)+1);
+    strcpy(node->header.value, text_token->value);
+}
 
 void parse_text(struct Node * node) {
     assert(node);
@@ -566,6 +585,9 @@ void parse_any(struct Node *node) {
             break;
         case otagimage:
             parse_image(node);
+            break;
+        case header:
+            parse_header(node);
             break;
         case code:
             parse_code(node);
@@ -626,6 +648,14 @@ void print_node(char * t, struct Node *node, int indent) {
         string_cat(t, " ", TEMP_MAX);
     }
     switch(node->type){
+        case NODE_HEADER: {
+            string_cat(t, "HEADER ", TEMP_MAX);
+            //string_cat(t, node->header.level, TEMP_MAX);
+            string_cat(t, " \"", TEMP_MAX);
+            string_cat(t, node->header.value, TEMP_MAX);
+            string_cat(t, "\"", TEMP_MAX);
+            break;
+        }
         case NODE_BOLD: {
             string_cat(t, "BOLD", TEMP_MAX);
             print_node(t, node->bold.inside, inside_indent);
@@ -694,6 +724,11 @@ void generate_html(struct Node * node) {
             break;
         case NODE_TEXT:
             printf("%s", node->text.value);
+            break;
+        case NODE_HEADER:
+            printf("<h%d>", node->header.level);
+            printf("%s", node->header.value);
+            printf("</h%d>", node->header.level);
             break;
         case NODE_BOLD:
             printf("<b>");
