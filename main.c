@@ -41,6 +41,7 @@ void print_debug_log(){
 
 #define assert(cond) {if (!(cond)){ print_debug_log(); printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
 #define assert_d(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %d\n", #cond, arg); *(volatile int * )0 = 0;}}
+#define assert_s(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %s\n", #cond, arg); *(volatile int * )0 = 0;}}
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 #define set(arr, idx, val, max) { assert(idx < max); arr[idx] = val;}
 
@@ -199,75 +200,81 @@ int is_inline_tag(const char * c) {
     return 1;
     // check for valid link
 }
+struct Global {
+    Token * tokens;
+    int token_idx;
+    void * memory;
+    int memory_allocated;
+    int memory_idx;
+    char * input;
+    int input_idx;
+};
 
-// Global Variables
-Token * tokens;
-int token_idx = 0;
-void * memory;
-int memory_allocated    = 13400000;
-int memory_idx          = 0;
+struct Global g = {0};
 
-char * input;
-int input_idx = 0;
+
+
+// global bariables
+
 
 void * allocate(int memory_needed) {
-    int memory_free = (memory_allocated-memory_idx);
-    assert_d(memory_needed < memory_free, memory_allocated + memory_needed);
-    void * block = &memory[memory_idx];
-    memory_idx += memory_needed;
+    int memory_free = (g.memory_allocated-g.memory_idx);
+    assert_d(memory_needed < memory_free, g.memory_allocated + memory_needed);
+    void * block = &g.memory[g.memory_idx];
+    g.memory_idx += memory_needed;
     //printf("allocated   %20d    needed %20d\n", memory_free, memory_needed);
     return block;
 }
 
 void create_token(int type, char * cursor, int len) {
-    printf("creating token %d, %s %d\n", token_idx, token_type_arr[type], len);
-    Token * token   = &tokens[token_idx];
+    printf("creating token %d, %s %d\n", g.token_idx, token_type_arr[type], len);
+    Token * token   = &g.tokens[g.token_idx];
     token->type     = type;
     assert(len < CAPTURE_STR_MAX);
     token->value    = allocate(len + 1);
     for(int i = 0; i < len; ++i) {
         token->value[i] = cursor[i];
     }
-    inc(token_idx, 1, TOKEN_ARR_MAX);
+    inc(g.token_idx, 1, TOKEN_ARR_MAX);
 }
 
 void create_blank_token(int type) {
-    printf("creating token %d, %s\n", token_idx, token_type_arr[type]);
-    Token * token   = &tokens[token_idx];
+    printf("creating token %d, %s\n", g.token_idx, token_type_arr[type]);
+    Token * token   = &g.tokens[g.token_idx];
     token->type     = type;
     token->value    = NULL;
-    inc(token_idx, 1, TOKEN_ARR_MAX);
+    inc(g.token_idx, 1, TOKEN_ARR_MAX);
 }
 
 int token_text() {
     int token_type = text;
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     debug("text match\n");
     // capture text until you find a link or the end of the line
     int i = 0;
     for(;;++i) {
-        if (is_inline_tag(&cursor[i])) break;
-        if (is_bold(&cursor[i])) break;
+        if (is_inline_tag(&cursor[i]))  break;
+        if (is_bold(&cursor[i]))        break;
         if (is_italic_char(&cursor[i])) break;
-        if (is_eol(cursor[i])) break;
+        if (is_eol(cursor[i]))          break;
     }
     if (i == 0) return 0; // must match at least one char
     create_token(token_type, cursor, i);
-    inc(input_idx, i, INPUT_MAX);
+    inc(g.input_idx, i, INPUT_MAX);
     return 1;
 }
 
 int token_basic(int token_type, const char * str) {
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     if(!is_match(cursor, str)) return 0;
     create_token(token_type, cursor, strlen(str));
-    inc(input_idx, strlen(str), INPUT_MAX);
+    inc(g.input_idx, strlen(str), INPUT_MAX);
     return 1;
 }
 
 int token_header() {
     int token_type = header;
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     int i = 0;
     for(;cursor[i] == '#';++i);
     if (i == 0) return 0;
@@ -275,23 +282,23 @@ int token_header() {
     if (cursor[i] != ' ') return 0;
     create_token(token_type, cursor, i);
     ++i;
-    inc(input_idx, i, INPUT_MAX);
+    inc(g.input_idx, i, INPUT_MAX);
     return 1;
 }
 
 int token_eof() {
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     int i = 0;
     if(cursor[i++] != '\n') return 0;
     if(cursor[i++] != '\0') return 0;
-    inc(input_idx, i, CODE_FILE_MAX);
+    inc(g.input_idx, i, CODE_FILE_MAX);
     create_blank_token(eof);
     return -1;
 }
 
 
 int token_config() {
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     // capture text until you find a link or the end of the line
     int i = 0;
     if (cursor[i] != ':') return 0;
@@ -301,17 +308,17 @@ int token_config() {
         if (is_eol(cursor[i])) break;
     }
     if (i == 1) return 0; // must match at least one char
-    inc(input_idx, i, INPUT_MAX);
+    inc(g.input_idx, i, INPUT_MAX);
     create_token(config, &cursor[1], i-1);
     return 1;
 }
 
 int token_toggle(int type, int flag, const char * match, int matching_state) {
-    char * cursor = &input[input_idx];
+    char * cursor = &g.input[g.input_idx];
     if(!is_match(cursor, match)) return 0;
     if(flags[flag] != matching_state) return 0;
     flags[flag] = !matching_state;
-    inc(input_idx, strlen(match), INPUT_MAX);
+    inc(g.input_idx, strlen(match), INPUT_MAX);
     create_blank_token(type);
     return 1;
 }
@@ -323,7 +330,7 @@ int token_href() {
     int front_len       = strlen(front);
     int back_len        = strlen(back);
     int flag            = tag_text_opened;
-    char * cursor       = &input[input_idx];
+    char * cursor       = &g.input[g.input_idx];
     if(!is_match(cursor, front)) return 0;
     if(flags[flag] == 0) return 0;
     flags[flag] = 0;
@@ -334,7 +341,7 @@ int token_href() {
     }
     create_token(type, &cursor[front_len], i-front_len);
     i += back_len;
-    inc(input_idx, i, INPUT_MAX);
+    inc(g.input_idx, i, INPUT_MAX);
     return 1;
 }
 
@@ -343,7 +350,7 @@ int token_code() {
     const char * back   = "```";
     int front_len       = strlen(front);
     int back_len        = strlen(back);
-    char * cursor       = &input[input_idx];
+    char * cursor       = &g.input[g.input_idx];
     if(!is_match(cursor, front)) return 0;
     int i = front_len;
     for(;;++i) {
@@ -352,14 +359,16 @@ int token_code() {
     }
     create_token(code, &cursor[front_len], i-front_len);
     i += back_len;
-    inc(input_idx, i, INPUT_MAX);
+    inc(g.input_idx, i, INPUT_MAX);
     return 1;
 }
 
+// add new rules here
 int match_token_rule(tk) {
     switch(tk) {
         case otagtext:  return token_toggle(tk, tag_text_opened,  "[",  0);
         case otagimage: return token_toggle(tk, tag_text_opened,  "![", 0);
+        case href:      return token_href();
         case oitalic:   return token_toggle(tk, italic_opened,    "_",  0);
         case citalic:   return token_toggle(tk, italic_opened,    "_",  1);
         case obold:     return token_toggle(tk, bold_opened,      "**", 0);
@@ -368,7 +377,6 @@ int match_token_rule(tk) {
         case nl:        return token_basic(tk, "\n");
         case config:    return token_config();
         case header:    return token_header();
-        case href:      return token_href();
         case code:      return token_code();
         case eof:       return token_eof();
         case text:      return token_text();
@@ -377,40 +385,26 @@ int match_token_rule(tk) {
     return 0;
 }
 
-void tokenizer() {
-    for (;;) { // raw input loop
-        int match_found = 0; 
-        for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
-            match_found = match_token_rule(rule_idx);
-            if (match_found) break;
-        }
-        if(match_found == -1) break; // eof
-        if (match_found == 0){
-            // print error
-            int line_start = 0;
-            printf("\n");
-            for(int i = 0; i < (int)strlen(input); ++i) {
-                printf("%c", input[i]);
-                if (input[i] == '\n'){ 
-                   if(i > input_idx) break;
-                   line_start = i;
-                }
-            }
-            int col = input_idx - line_start;
-            for(int i = 0; i < col ; ++i) {
-                printf(" ");
-            }
-            printf("|<-- no match: '%c'\n", input[input_idx]);
-            assert(0);
-        } // error
-    }
-    for(int i = 0; i < FlagsEnd; ++i) {
-        if (flags[i]){ 
-            printf("flag not off: %s", flag_arr[i]);
-            assert(0);
+void print_error() {
+    // print error
+    int line_start = 0;
+    printf("\n");
+    // find start of line
+    for(int i = 0; i < (int)strlen(g.input); ++i) {
+        printf("%c", g.input[i]);
+        if (g.input[i] == '\n'){ 
+           if(i > g.input_idx) break;
+           line_start = i;
         }
     }
+    int col = g.input_idx - line_start;
+    for(int i = 0; i < col ; ++i) {
+        printf(" ");
+    }
+    printf("|<-- no match: '%c'\n", g.input[g.input_idx]);
+    assert(0);
 }
+
 
 #if 1
 
@@ -419,7 +413,7 @@ void tokenizer() {
 *************************************************************/
 
 Token * consume(TokenType expected_type) {
-    Token * token = tokens;
+    Token * token = g.tokens;
     if(token->type != expected_type) {
         printf("Expected: %s Actual: %s\n",
             token_type_arr[expected_type], token_type_arr[token[0].type] );
@@ -427,13 +421,13 @@ Token * consume(TokenType expected_type) {
     }
     //printf("consumed: %s\n", token_type_arr[expected_type]);
     // hmm...
-    tokens = tokens + 1;
+    g.tokens = g.tokens + 1;
     //printf("token %d\n", token_count_debug);
     return token;
 }
 
 int peek_ahead(TokenType type, int offset) {
-    if (tokens[offset].type == type) return 1;
+    if (g.tokens[offset].type == type) return 1;
     return 0;
 }
 
@@ -494,8 +488,6 @@ struct Node{
         } header;
     };
 };
-
-
 
 void parse_any();
 
@@ -570,6 +562,7 @@ void parse_code(struct Node * node) {
 
 int is_deadend(int type) {
     switch(type) {
+        case eof:        return 1;
         case href:       return 1;
         case citalic:    return 1;
         case cbold:      return 1;
@@ -577,59 +570,38 @@ int is_deadend(int type) {
     }
 }
 
-// @robustness: If we fail to consume a token, we get a segfault
-void parse_any(struct Node *node) {
-    switch(tokens->type) {
-        case otagtext:
-            parse_link(node);
-            break;
-        case otagimage:
-            parse_image(node);
-            break;
-        case header:
-            parse_header(node);
-            break;
-        case code:
-            parse_code(node);
-            break;
-        case config:
-			//@TODO; implement config
-            consume(config);
-            break;
-        case href:
-            return;
-        case obold:
-            parse_bold(node);
-            break;
-        case cbold:
-            return;
-        case oitalic:
-            parse_italic(node);
-            break;
-        case citalic:
-            return;
-        case text:
-            parse_text(node);
-            break;
-        case nl:
-            parse_nl(node);
-            break;
-        case eof:
-            printf("END OF FILE");
-            break;
+//@TODO; implement config
+void parse_config(struct Node * node) {
+    consume(config);
+}
+
+void parse_rules(struct Node * node) {
+    switch(g.tokens->type) {
+        case otagtext:  return parse_link(node);   
+        case otagimage: return parse_image(node);  
+        case header:    return parse_header(node); 
+        case code:      return parse_code(node);   
+        case config:    return parse_config(node); 
+        case href:      return;
+        case cbold:     return;
+        case citalic:   return;
+        case obold:     return parse_bold(node);   
+        case oitalic:   return parse_italic(node); 
+        case text:      return parse_text(node);   
+        case nl:        return parse_nl(node);     
+        case eof:   assert(0 && "parse any - END OF FILE");
         default:
-            printf("parse any: token type not found: %s\n", token_type_arr[tokens->type]);
+            printf("parse any: token type not found: %s\n", token_type_arr[g.tokens->type]);
             assert(0);
     }
-    if (!peek(eof)) {
-        // Here, a node has been allocated, but there might not be a next token
-        if (!is_deadend(tokens->type)) {
-            node->next = allocate(sizeof (struct Node));
-            parse_any(node->next);
-        }
-    }
-    else {
-        node->next = NULL;
+}
+
+// @robustness: If we fail to consume a token, we get a segfault
+void parse_any(struct Node *node) {
+    parse_rules(node);
+    if (!is_deadend(g.tokens->type)) {
+        node->next = allocate(sizeof (struct Node));
+        parse_any(node->next);
     }
 }
 
@@ -763,25 +735,45 @@ void generate_html(struct Node * node) {
 
 
 int main() {
-    memory = malloc(memory_allocated);
-    tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
+    g.input_idx             = 0;
+    g.token_idx             = 0;
+    g.memory_allocated      = 13400000;
+    g.memory_idx            = 0;
+    g.memory = malloc(g.memory_allocated);
+    g.tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
 
     {
         FILE * f = fopen("markdown.txt", "r");
         assert(f);
         fseek(f, 0, SEEK_END);
         long int length = ftell(f);
-        input = allocate(length+1);
+        g.input = allocate(length+1);
         fseek(f, 0, SEEK_SET);
-        fread(input, length, 1, f );
+        fread(g.input, length, 1, f );
         fclose(f);
-        input[length] = '\0';
+        g.input[length] = '\0';
     }
 
-    printf("\n-------Code-------\n%s", input);
-    tokenizer();
+    printf("\n-------Code-------\n%s", g.input);
+    // ********************** TOKENIZER ***************************
+    for (int match_found = 0;match_found != -1;) { // raw input loop
+        match_found = 0; 
+        for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
+            // this does the most work
+            match_found = match_token_rule(rule_idx);
+            if (match_found) break;
+        }
+        if (match_found == 0){
+            print_error();
+        } // error
+    }
+    // assert tags are all closed
+    for(int i = 0; i < FlagsEnd; ++i) {
+        assert_s(!flags[i], flag_arr[i]);
+    }
+    // ****************** END TOKENIZER ***************************
     printf("\n------Tokens------\n");
-    for(Token *token = tokens; token->type != eof; token = &token[1]) {
+    for(Token *token = g.tokens; token->type != eof; token = &token[1]) {
         if (token->type == nl) {
             printf("%s\n", token_type_arr[token->type]);
         }
@@ -801,6 +793,6 @@ int main() {
     printf("%s\n", temp);
     printf("\n------Html--------\n");
     generate_html(&node);
-    printf("\nmemory used %d", memory_idx);
+    printf("\nmemory used %d", g.memory_idx);
     return 0;
 }
