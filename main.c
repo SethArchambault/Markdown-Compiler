@@ -24,6 +24,7 @@ void debug(const char * arg){
     }
 }
 */
+
 #define debug(arr) {}
 
 void print_debug_log(){
@@ -53,12 +54,11 @@ void print_debug_log(){
 *************************************************************/
 
 #define CODE_FILE_MAX 600000
+#define INPUT_MAX 600000
 #define TOKEN_ARR_MAX 2000
 #define TOKEN_RULES_MAX 6
 
-#define REGEX_ARR_COUNT 20
 
-#define REGEX_STR_MAX 50
 #define TOKEN_STR_MAX 100
 #define TOKEN_RULE_STR_MAX 20
 
@@ -94,31 +94,6 @@ typedef enum {
     TOKENS(CREATE_ENUM)
     TokenTypeEnd
 } TokenType;
-
-#define REGEX_ARR_MAX TokenTypeEnd 
-
-char regex_arr [REGEX_ARR_MAX][REGEX_STR_MAX] = {
-    "[:eof:]",
-    "###### ",  
-    "##### ",  
-    "#### ",  
-    "### ",  
-    "## ",  
-    "# ",  
-    "> ",  
-    "[:code:]",                 
-    "[:config:]",
-    "[:text:]",
-    "[:obold:]",                 
-    "[:cbold:]",                 
-    "[:oitalic:]",                 
-    "[:citalic:]",                 
-    "[:otagimage:]",                 
-    "[:otagtext:]",                 
-    "[:href:]",                 
-    "!",
-    "\n",
-};
 
 #define CREATE_STRINGS(name) #name,
 char token_type_arr [TokenTypeEnd][TOKEN_STR_MAX] = {
@@ -158,20 +133,29 @@ int is_match(const char * c1, const char * c2) {
     return 1;
 }
 
+#define FLAGS(f)        \
+    f(italic_opened)    \
+    f(bold_opened)      \
+    f(tag_text_opened)  \
+    f(code_opened)
 
-struct TokenizerState {
-    int italic_opened;
-    int bold_opened;
-    int tag_text_opened;
-    int tag_href_opened;
-    int code_opened;
+
+
+enum Flags {
+    FLAGS(CREATE_ENUM)
+    FlagsEnd
 };
 
-struct TokenizerState tokenizer_state = {0};
+char flag_arr [FlagsEnd][20] = {
+    FLAGS(CREATE_STRINGS)
+};
 
+int flags[FlagsEnd] = {0};
+
+// text uses these function sto decide if it should bail out 
 int is_bold(const char * c) {
     if(! is_match(c, "**")) return 0;
-    if (tokenizer_state.bold_opened) return 1;
+    if (flags[bold_opened]) return 1;
     int i = 2; // skip matched **
     for (;;++i) {
         if (is_eol(c[i])) return 0;
@@ -184,7 +168,7 @@ int is_bold(const char * c) {
 int is_italic_char(const char * c) {
     int i = 0;
     if(c[i] != '_') return 0;
-    if (tokenizer_state.italic_opened) return 1;
+    if (flags[italic_opened]) return 1;
     ++i;
     // search eol for char
     for(;;++i) {
@@ -199,7 +183,7 @@ int is_inline_tag(const char * c) {
     // check if valid link exists
     int i = 0;
     if (c[i] == ']' && 
-        tokenizer_state.tag_text_opened) {
+        flags[tag_text_opened]) {
             return 1;     
     }
     if (!is_match(&c[i], "![") && c[i] != '[') return 0;
@@ -221,153 +205,15 @@ int is_inline_tag(const char * c) {
     // check for valid link
 }
 
-int capture_match(const char * code, const char * regex, char * capture_string) {
-    int regex_idx   = 0;
-    int code_idx    = 0;
-    capture_string[0] = '\0';
-    for (;;) {
-        //printf("\n'%c' == '%c' rule: %s     ", 
-         //       code[code_idx],regex[regex_idx], regex);
-        if (regex[regex_idx] == '\0') {
-            // remember, this is the end of the regex string
-            // not the end of the file
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:config:]")) {
-            debug("config match\n");
-            // capture text until you find a link or the end of the line
-            int i = 0;
-            if (code[code_idx + i] != ':') return 0;
-            ++i;
-            for(;;++i) {
-                if (is_eol(code[code_idx + i])) break;
-            }
-            if (i == 1) return 0; // must match at least one char
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:code:]")){
-            if(!is_match(&code[code_idx], "```")) return 0;
-            int i = 3;
-            for(;;++i) {
-                if (code[code_idx + i] == '\0') return 0;
-                if (is_match(&code[code_idx + i], "```")) break;
-            }
-            i += 3;
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:text:]")) {
-            debug("text match\n");
-            // capture text until you find a link or the end of the line
-            int i = 0;
-            for(;;++i) {
-                if (is_inline_tag(&code[code_idx + i])) break;
-                if (is_bold(&code[code_idx + i])) break;
-                if (is_italic_char(&code[code_idx + i])) break;
-                if (is_eol(code[code_idx + i])) break;
-            }
-            if (i == 0) return 0; // must match at least one char
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:obold:]")){
-            if( is_match(&code[code_idx], "**") &&
-                !tokenizer_state.bold_opened) 
-            {
-                tokenizer_state.bold_opened = 1;
-                inc(code_idx, 2, CODE_FILE_MAX);
-                break;
-            }
-            return 0;
-        }
-        else if (is_match(&regex[regex_idx], "[:cbold:]")){
-            if(!is_match(&code[code_idx], "**")) return 0;
-            if(!tokenizer_state.bold_opened) return 0;
-            tokenizer_state.bold_opened = 0;
-            inc(code_idx, 2, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:oitalic:]")){
-            if(code[code_idx] != '_') return 0;
-            if(tokenizer_state.italic_opened) return 0;
-            tokenizer_state.italic_opened = 1;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:citalic:]")){
-            if(code[code_idx] != '_') return 0;
-            if(!tokenizer_state.italic_opened) return 0;
-            tokenizer_state.italic_opened = 0;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:otagimage:]")){
-            if(!is_match(&code[code_idx], "![")) return 0;
-            if(tokenizer_state.tag_text_opened) return 0;
-            tokenizer_state.tag_text_opened = 1;
-            inc(code_idx, 2, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:otagtext:]")){
-            if(code[code_idx] != '[') return 0;
-            if(tokenizer_state.tag_text_opened) return 0;
-            tokenizer_state.tag_text_opened = 1;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:href:]")){
-            if(!is_match(&code[code_idx], "](")) return 0;
-            if(tokenizer_state.tag_text_opened == 0) return 0;
-            tokenizer_state.tag_text_opened = 0;
-            int i = 2;
-            for (;;++i) {
-                if (is_eol(code[code_idx+i])) return 0;
-                if (code[code_idx+i] == ')') break;
-            }
-            ++i;
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:ctaghref:]")){
-            if(code[code_idx] != ')') return 0;
-            if(!tokenizer_state.tag_href_opened) return 0;
-            tokenizer_state.tag_text_opened = 0;
-            inc(code_idx, 1, CODE_FILE_MAX);
-            break;
-        }
-        else if (is_match(&regex[regex_idx], "[:eof:]")) { 
-            int i = 0;
-            if(code[code_idx + i] != '\n') return 0;
-            ++i;
-            if(code[code_idx + i] != '\0') return 0;
-            ++i;
-            inc(code_idx, i, CODE_FILE_MAX);
-            break;
-        }
-        else if (code[code_idx] == regex[regex_idx]) {
-            inc(regex_idx, 1, REGEX_STR_MAX);
-            inc(code_idx, 1, CODE_FILE_MAX); 
-        }
-        else {
-            // no match
-            return 0;
-        }
-    }
-    int i = 0;
-    for(; i < code_idx;) {
-        capture_string[i] = code[i];
-        inc(i,1, CAPTURE_STR_MAX);
-    }
-    capture_string[i] = '\0';
-    return 1;
-}
-
 // Global Variables
 Token * tokens;
+int token_idx = 0;
 void * memory;
-int memory_allocated = 13400000;
-int memory_idx = 0;
+int memory_allocated    = 13400000;
+int memory_idx          = 0;
+
+char * input;
+int input_idx = 0;
 
 void * allocate(int memory_needed) {
     int memory_free = (memory_allocated-memory_idx);
@@ -377,48 +223,188 @@ void * allocate(int memory_needed) {
     //printf("allocated   %20d    needed %20d\n", memory_free, memory_needed);
     return block;
 }
-void tokenizer(const char * code) {
-    int token_idx = 0;
-    int code_idx = 0;
-    for (;;) {
-        int match_found = 0;
-        char capture_string[CAPTURE_STR_MAX] = {0};
-        for (int regex_idx= 0; regex_idx < REGEX_ARR_MAX; ++regex_idx) {
-            match_found = capture_match(
-                    &code[code_idx], regex_arr[regex_idx], capture_string);
-            if (match_found) {
-                Token * token = &tokens[token_idx];
-                token->type  = regex_idx;
-                assert(strlen(capture_string) < CAPTURE_STR_MAX);
-                token->value = allocate(strlen(capture_string)+1);
-                strcpy(token->value, capture_string);
-                inc(token_idx, 1, TOKEN_ARR_MAX);
-                // @coupling: I can't increment code_idx more than the 
-                // capture string size, which I want to do.
-                inc(code_idx, strlen(capture_string), CODE_FILE_MAX);
-                if (token->type == eof) return;
-                break;
-            }
-        }// tokens
-        if (match_found == 0) {
+
+void create_token(int type, char * cursor, int start, int end) {
+    printf("creating token %d, %s %d %d\n", token_idx, token_type_arr[type], start, end);
+    Token * token   = &tokens[token_idx];
+    token->type     = type;
+    int len = end - start;
+    assert(len < CAPTURE_STR_MAX);
+    token->value    = allocate(len + 1);
+    int cursor_idx = start;
+    for(int i = 0; i < len; ++i) {
+        token->value[i] = cursor[cursor_idx];
+        cursor_idx++;
+    }
+    inc(token_idx, 1, TOKEN_ARR_MAX);
+}
+
+void create_blank_token(int type) {
+    printf("creating token %d, %s\n", token_idx, token_type_arr[type]);
+    Token * token   = &tokens[token_idx];
+    token->type     = type;
+    token->value    = NULL;
+    inc(token_idx, 1, TOKEN_ARR_MAX);
+}
+
+int token_text() {
+    int token_type = text;
+    char * cursor = &input[input_idx];
+    debug("text match\n");
+    // capture text until you find a link or the end of the line
+    int i = 0;
+    for(;;++i) {
+        if (is_inline_tag(&cursor[i])) break;
+        if (is_bold(&cursor[i])) break;
+        if (is_italic_char(&cursor[i])) break;
+        if (is_eol(cursor[i])) break;
+    }
+    if (i == 0) return 0; // must match at least one char
+    create_token(token_type, cursor, 0, i);
+    inc(input_idx, i, INPUT_MAX);
+    return 1;
+}
+
+int token_basic(int token_type, const char * str) {
+    char * cursor = &input[input_idx];
+    if(!is_match(cursor, str)) return 0;
+    create_token(token_type, cursor, 0, strlen(str));
+    inc(input_idx, strlen(str), INPUT_MAX);
+    return 1;
+}
+
+int token_eof() {
+    char * cursor = &input[input_idx];
+    int i = 0;
+    if(cursor[i++] != '\n') return 0;
+    if(cursor[i++] != '\0') return 0;
+    inc(input_idx, i, CODE_FILE_MAX);
+    create_blank_token(eof);
+    return -1;
+}
+
+
+int token_config() {
+    char * cursor = &input[input_idx];
+    // capture text until you find a link or the end of the line
+    int i = 0;
+    if (cursor[i] != ':') return 0;
+    printf("token config match\n");
+    ++i;
+    for(;;++i) {
+        if (is_eol(cursor[i])) break;
+    }
+    if (i == 1) return 0; // must match at least one char
+    inc(input_idx, i, INPUT_MAX);
+    create_token(config, cursor, 1, i);
+    return 1;
+}
+
+int token_toggle(int type, int flag, const char * match, int matching_state) {
+    char * cursor = &input[input_idx];
+    if(!is_match(cursor, match)) return 0;
+    if(flags[flag] != matching_state) return 0;
+    flags[flag] = !matching_state;
+    inc(input_idx, strlen(match), INPUT_MAX);
+    create_blank_token(type);
+    return 1;
+}
+
+int token_href() {
+    int flag = tag_text_opened;
+    char * cursor = &input[input_idx];
+    int start = 2;
+    if(!is_match(cursor, "](")) return 0;
+    if(flags[flag] == 0) return 0;
+    flags[flag] = 0;
+    int i = 2;
+    for (;;++i) {
+        if (is_eol(cursor[i])) return 0;
+        if (cursor[i] == ')') break;
+    }
+    create_token(href, cursor, start, i);
+    ++i;
+    inc(input_idx, i, INPUT_MAX);
+    return 1;
+}
+
+int token_code() {
+    const char * front = "```";
+    const char * back = "```";
+    int front_len = strlen(front);
+    int back_len = strlen(back);
+    char * cursor = &input[input_idx];
+    if(!is_match(cursor, front)) return 0;
+    int i = front_len;
+    for(;;++i) {
+        if (cursor[i] == '\0') return 0;
+        if (is_match(&cursor[i], back)) break;
+    }
+    create_token(code, cursor, front_len, i);
+    i += back_len;
+    inc(input_idx, i, INPUT_MAX);
+    return 1;
+}
+
+int match_token_rule(tk) {
+    switch(tk) {
+        case href:      return token_href();
+        case otagtext:  return token_toggle(tk, tag_text_opened, "[", 0);
+        case otagimage: return token_toggle(tk, tag_text_opened, "![", 0);
+        case oitalic:   return token_toggle(tk, italic_opened, "_", 0);
+        case citalic:   return token_toggle(tk, italic_opened, "_", 1);
+        case obold:     return token_toggle(tk, bold_opened, "**", 0);
+        case cbold:     return token_toggle(tk, bold_opened, "**", 1);
+        case quote:     return token_basic(tk, "> ");
+        case code:      return token_code();
+        case config:    return token_config();
+        case h6:        return token_basic(tk, "###### ");
+        case h5:        return token_basic(tk, "##### ");
+        case h4:        return token_basic(tk, "#### ");
+        case h3:        return token_basic(tk, "### ");
+        case h2:        return token_basic(tk, "## ");
+        case h1:        return token_basic(tk, "# ");
+        case eof:       return token_eof();
+        case nl:        return token_basic(tk, "\n");
+        case text:      return token_text();
+        default:printf("match - unknown token %s\n", token_type_arr[tk]);
+    }
+    return 0;
+}
+
+void tokenizer() {
+    for (;;) { // raw input loop
+        int match_found = 0; 
+        for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
+            match_found = match_token_rule(rule_idx);
+            if (match_found) break;
+        }
+        if(match_found == -1) break; // eof
+        if (match_found == 0){
             // print error
             int line_start = 0;
             printf("\n");
-            for(int i = 0; i < (int)strlen(code); ++i) {
-                printf("%c", code[i]);
-                if (code[i] == '\n'){ 
-                   if(i > code_idx) break;
+            for(int i = 0; i < (int)strlen(input); ++i) {
+                printf("%c", input[i]);
+                if (input[i] == '\n'){ 
+                   if(i > input_idx) break;
                    line_start = i;
                 }
             }
-            int col = code_idx - line_start;
+            int col = input_idx - line_start;
             for(int i = 0; i < col ; ++i) {
                 printf(" ");
             }
-            printf("|<-- no match: '%c'\n", code[code_idx]);
+            printf("|<-- no match: '%c'\n", input[input_idx]);
             assert(0);
         } // error
-    }// code
+    }
+    for(int i = 0; i < FlagsEnd; ++i) {
+        if (flags[i]){ 
+            printf("flag not off: %s", flag_arr[i]);
+            assert(0);
+        }
+    }
 }
 
 #if 1
@@ -572,6 +558,7 @@ int is_deadend(int type) {
     }
 }
 
+// @robustness: If we fail to consume a token, we get a segfault
 void parse_any(struct Node *node) {
     switch(tokens->type) {
         case otagtext:
@@ -585,6 +572,7 @@ void parse_any(struct Node *node) {
             break;
         case config:
 			//@TODO; implement config
+            consume(config);
             break;
         case href:
             return;
@@ -743,26 +731,27 @@ int main() {
     memory = malloc(memory_allocated);
     tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
 
-
-    char * code;
     {
         FILE * f = fopen("markdown.txt", "r");
         assert(f);
         fseek(f, 0, SEEK_END);
         long int length = ftell(f);
-        code = allocate(length+1);
+        input = allocate(length+1);
         fseek(f, 0, SEEK_SET);
-        fread(code, length, 1, f );
+        fread(input, length, 1, f );
         fclose(f);
-        code[length] = '\0';
+        input[length] = '\0';
     }
 
-    printf("\n-------Code-------\n%s", code);
-    tokenizer(code);
+    printf("\n-------Code-------\n%s", input);
+    tokenizer();
     printf("\n------Tokens------\n");
     for(Token *token = tokens; token->type != eof; token = &token[1]) {
         if (token->type == nl) {
-            printf("%s()\n", token_type_arr[token->type]);
+            printf("%s\n", token_type_arr[token->type]);
+        }
+        else if (token->value == NULL) {
+            printf("%s ", token_type_arr[token->type]);
         }
         else {
             printf("%s(%s) ", token_type_arr[token->type], token->value);
