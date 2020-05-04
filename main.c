@@ -43,9 +43,9 @@
     t(cbold)            \
     t(oitalic)          \
     t(citalic)          \
-    t(otagimage)        \
-    t(otagtext)         \
-    t(href)             \
+    t(image)            \
+    t(link)             \
+    t(src)              \
     t(nl)               \
 
 typedef enum {
@@ -112,8 +112,6 @@ int is_match(const char * c1, const char * c2) {
     return 1;
 }
 
-
-// text uses these function sto decide if it should bail out 
 int is_bold(const char * c) {
     if(! is_match(c, "**")) return 0;
     if (flags[bold_opened]) return 1;
@@ -165,7 +163,6 @@ int is_inline_tag(const char * c) {
     return 1;
     // check for valid link
 }
-
 
 void * allocate(int memory_needed) {
     int memory_free = (g.memory_allocated-g.memory_idx);
@@ -245,7 +242,6 @@ int token_eof() {
     return -1;
 }
 
-
 int token_config() {
     char * cursor = &g.input[g.input_idx];
     // capture text until you find a link or the end of the line
@@ -272,8 +268,8 @@ int token_toggle(int type, int flag, const char * match, int matching_state) {
     return 1;
 }
 
-int token_href() {
-    int type = href;
+int token_src() {
+    int type = src;
     const char *front   = "](";
     const char *back    = ")";
     int front_len       = strlen(front);
@@ -315,9 +311,9 @@ int token_code() {
 // add new rules here
 int match_token_rule(tk) {
     switch(tk) {
-        case otagtext:  return token_toggle(tk, tag_text_opened,  "[",  0);
-        case otagimage: return token_toggle(tk, tag_text_opened,  "![", 0);
-        case href:      return token_href();
+        case link:     return token_toggle(tk, tag_text_opened,  "[",  0);
+        case image:     return token_toggle(tk, tag_text_opened,  "![", 0);
+        case src:       return token_src();
         case oitalic:   return token_toggle(tk, italic_opened,    "_",  0);
         case citalic:   return token_toggle(tk, italic_opened,    "_",  1);
         case obold:     return token_toggle(tk, bold_opened,      "**", 0);
@@ -415,11 +411,11 @@ struct Node{
         } bold;
         struct { // NODE_LINK
             struct Node * text;
-            char * href;
+            char * src;
         } link;
         struct { // NODE_IMAGE
             struct Node * text;
-            char * href;
+            char * src;
         } image;
         struct { // NODE_CODE
             char * value;
@@ -451,22 +447,22 @@ void parse_italic(struct Node * node) {
 void parse_link(struct Node * node) {
     assert(node);
     node->type = NODE_LINK;
-    consume(otagtext);
+    consume(link);
     node->link.text = allocate(sizeof(struct Node));
     parse_any(node->link.text);
-    Token * href_token = consume(href);
-    node->link.href = allocate(strlen(href_token->value)+1);
-    strcpy(node->link.href, href_token->value);
+    Token * src_token = consume(src);
+    node->link.src = allocate(strlen(src_token->value)+1);
+    strcpy(node->link.src, src_token->value);
 }
 void parse_image(struct Node * node) {
     assert(node);
     node->type = NODE_IMAGE;
-    consume(otagimage);
+    consume(image);
     node->image.text = allocate(sizeof(struct Node));
     parse_any(node->image.text);
-    Token * href_token = consume(href);
-    node->image.href = allocate(strlen(href_token->value)+1);
-    strcpy(node->image.href, href_token->value);
+    Token * src_token = consume(src);
+    node->image.src = allocate(strlen(src_token->value)+1);
+    strcpy(node->image.src, src_token->value);
 }
 
 void parse_bold(struct Node * node) {
@@ -511,7 +507,7 @@ void parse_code(struct Node * node) {
 int is_deadend(int type) {
     switch(type) {
         case eof:       return 1;
-        case href:      return 1;
+        case src:       return 1;
         case citalic:   return 1;
         case cbold:     return 1;
         default:        return 0;
@@ -537,12 +533,12 @@ void parse_rules(struct Node * node) {
 	g.prev_token = g.tokens;
 
     switch(g.tokens->type) {
-        case otagtext:  return parse_link(node);   
-        case otagimage: return parse_image(node);  
+        case link:      return parse_link(node);   
+        case image:     return parse_image(node);  
         case header:    return parse_header(node); 
         case code:      return parse_code(node);   
         case config:    return parse_config(node); 
-        case href:      return;
+        case src:       return;
         case cbold:     return;
         case citalic:   return;
         case quote:     return parse_quote(node);   
@@ -609,15 +605,15 @@ void print_node(char * t, struct Node *node, int indent) {
             break;
         }
         case NODE_LINK: {
-            string_cat(t, "LINK href=\"", TEMP_MAX);
-            string_cat(t, node->link.href, TEMP_MAX);
+            string_cat(t, "LINK src=\"", TEMP_MAX);
+            string_cat(t, node->link.src, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
             print_node(t, node->link.text, inside_indent);
             break;
         }
         case NODE_IMAGE: {
-            string_cat(t, "IMAGE href=\"", TEMP_MAX);
-            string_cat(t, node->link.href, TEMP_MAX);
+            string_cat(t, "IMAGE src=\"", TEMP_MAX);
+            string_cat(t, node->link.src, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
             print_node(t, node->link.text, inside_indent);
             break;
@@ -681,12 +677,12 @@ void generate_html(struct Node * node) {
             printf("</i>");
             break;
         case NODE_LINK:
-            printf("<a href=\"%s\">", node->link.href);
+            printf("<a src=\"%s\">", node->link.src);
             generate_html(node->link.text);
             printf("</a>");
             break;
         case NODE_IMAGE:
-            printf("<img src=\"%s\" alt=\"", node->image.href);
+            printf("<img src=\"%s\" alt=\"", node->image.src);
             generate_html(node->image.text);
             printf("\">");
             break;
