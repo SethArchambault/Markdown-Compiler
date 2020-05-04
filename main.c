@@ -2,46 +2,10 @@
 #include<string.h>
 #include<stdlib.h>
 
-int debug_log_start = 0;
-int debug_log_end   = 0;
-#define debug_log_max 200
-char debug_log[debug_log_max];
 
-/*
-void debug(const char * arg){
-    for(int i = 0;arg[i] != '\0';++i) {
-        debug_log[debug_log_end] = arg[i];
-        debug_log_end++;
-        if (debug_log_end > debug_log_max) {
-            debug_log_end = 0;
-        }
-        if (debug_log_start == debug_log_end) {
-            debug_log_start++;
-        }
-        if (debug_log_start > debug_log_max) {
-            debug_log_start = 0;
-        }
-    }
-}
-*/
-
-#define debug(arr) {}
-
-void print_debug_log(){
-    int i = debug_log_start;
-    for(;;) {
-        if (debug_log[i] == '\0') break;
-        if (i == debug_log_end) break;
-
-        printf("%c", debug_log[i]);
-        i++;
-        if (i == debug_log_max) i = 0;
-    }
-}
-
-#define assert(cond) {if (!(cond)){ print_debug_log(); printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
-#define assert_d(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %d\n", #cond, arg); *(volatile int * )0 = 0;}}
-#define assert_s(cond, arg) {if (!(cond)){ print_debug_log(); printf("Assert Failed: %s, %s\n", #cond, arg); *(volatile int * )0 = 0;}}
+#define assert(cond) {if (!(cond)){ printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
+#define assert_d(cond, arg) {if (!(cond)){ printf("Assert Failed: %s, %d\n", #cond, arg); *(volatile int * )0 = 0;}}
+#define assert_s(cond, arg) {if (!(cond)){ printf("Assert Failed: %s, %s\n", #cond, arg); *(volatile int * )0 = 0;}}
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 #define set(arr, idx, val, max) { assert(idx < max); arr[idx] = val;}
 
@@ -50,6 +14,7 @@ void print_debug_log(){
     assert_d(needed < max, needed);\
     strcat(t, str);\
 }
+
 /*************************************************************
 *********************** TOKENIZER **************************** 
 *************************************************************/
@@ -108,14 +73,6 @@ int is_eol(const char c) {
     if(c == '\0') return 1;
     return 0;
 }
-
-int contains(const char c, const char * matches) {
-    for (int i = 0; matches[i] != '\0';++i) {
-        if (c == matches[i]) return 1;
-    }
-    return 0;
-}
-
 
 // @TODO - just make this return the number of matched characters
 int is_match(const char * c1, const char * c2) {
@@ -197,6 +154,7 @@ int is_inline_tag(const char * c) {
     return 1;
     // check for valid link
 }
+
 struct Global {
     Token * tokens;
     int token_idx;
@@ -208,11 +166,6 @@ struct Global {
 };
 
 struct Global g = {0};
-
-
-
-// global bariables
-
 
 void * allocate(int memory_needed) {
     int memory_free = (g.memory_allocated-g.memory_idx);
@@ -246,7 +199,6 @@ void create_blank_token(int type) {
 int token_text() {
     int token_type = text;
     char * cursor = &g.input[g.input_idx];
-    debug("text match\n");
     // capture text until you find a link or the end of the line
     int i = 0;
     for(;;++i) {
@@ -360,7 +312,6 @@ int token_code() {
     return 1;
 }
 
-
 // add new rules here
 int match_token_rule(tk) {
     switch(tk) {
@@ -400,10 +351,6 @@ int match_token_rule(tk) {
 	assert(0);
     return 0;
 }
-
-
-
-#if 1
 
 /*************************************************************
 ************************* PARSER ***************************** 
@@ -563,11 +510,11 @@ void parse_code(struct Node * node) {
 
 int is_deadend(int type) {
     switch(type) {
-        case eof:        return 1;
-        case href:       return 1;
-        case citalic:    return 1;
-        case cbold:      return 1;
-        default:    return 0;
+        case eof:       return 1;
+        case href:      return 1;
+        case citalic:   return 1;
+        case cbold:     return 1;
+        default:        return 0;
     }
 }
 
@@ -695,13 +642,17 @@ void print_node(char * t, struct Node *node, int indent) {
         default: 
             printf("print_node node type not found %s\n", 
                 node_type_arr[node->type]);
+            assert(0);
     }
     struct Node * next = node->next;
     if (next) {
         print_node(t, next, indent);
     }
 }
-#endif
+
+/*************************************************************
+********************* GENERATE HTML ************************** 
+*************************************************************/
 
 void generate_html(struct Node * node) {
     assert(node);
@@ -756,12 +707,12 @@ void generate_html(struct Node * node) {
             break;
 		default:
 			printf("node not found: '%s'\n", node_type_arr[node->type]);
+            assert(0);
     }
     if (node->next != NULL) {
         generate_html(node->next);
     }
 }
-
 
 int main() {
     g.input_idx             = 0;
@@ -770,7 +721,6 @@ int main() {
     g.memory_idx            = 0;
     g.memory = malloc(g.memory_allocated);
     g.tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
-
     {
         FILE * f = fopen("markdown.txt", "r");
         assert(f);
@@ -782,7 +732,6 @@ int main() {
         fclose(f);
         g.input[length] = '\0';
     }
-
     printf("\n-------Code-------\n%s", g.input);
     // ********************** TOKENIZER ***************************
     for (int match_found = 0;match_found != -1;) { // raw input loop
@@ -797,7 +746,6 @@ int main() {
     for(int i = 0; i < FlagsEnd; ++i) {
         assert_s(!flags[i], flag_arr[i]);
     }
-    // ****************** END TOKENIZER ***************************
     printf("\n------Tokens------\n");
     for(Token *token = g.tokens; token->type != eof; token = &token[1]) {
         if (token->type == nl) {
@@ -810,6 +758,8 @@ int main() {
             printf("%s(%s) ", token_type_arr[token->type], token->value);
         }
     }
+
+    // ************************* PARSER ***************************
     struct Node node = {};
     parser(&node);
     printf("\n\n------Nodes-------");
@@ -817,6 +767,8 @@ int main() {
     temp[0] = '\0';
     print_node(temp, &node, 0);
     printf("%s\n", temp);
+
+    // *********************** GENERATE HTML **********************
     printf("\n------Html--------\n");
     generate_html(&node);
     printf("\nmemory used %d", g.memory_idx);
