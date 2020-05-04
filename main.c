@@ -68,28 +68,24 @@ typedef struct {
     char str[TOKEN_RULE_STR_MAX];
 } TokenRule;
 
-int is_eol(const char c) {
-    if(c == '\n') return 1;
-    if(c == '\0') return 1;
-    return 0;
-}
+struct Global {
+    Token * tokens;
+    Token * prev_token;
+    int token_idx;
+    void * memory;
+    int memory_allocated;
+    int memory_idx;
+    char * input;
+    int input_idx;
+};
 
-// @TODO - just make this return the number of matched characters
-int is_match(const char * c1, const char * c2) {
-    for(int i = 0;c2[i] != '\0';++i) {
-        if(c1[i] == '\0') return 0;
-        if(c1[i] != c2[i]) return 0;
-    }
-    return 1;
-}
+struct Global g = {0};
 
 #define FLAGS(f)        \
     f(italic_opened)    \
     f(bold_opened)      \
     f(tag_text_opened)  \
     f(code_opened)
-
-
 
 enum Flags {
     FLAGS(CREATE_ENUM)
@@ -101,6 +97,21 @@ char flag_arr [FlagsEnd][20] = {
 };
 
 int flags[FlagsEnd] = {0};
+
+int is_eol(const char c) {
+    if(c == '\n') return 1;
+    if(c == '\0') return 1;
+    return 0;
+}
+
+int is_match(const char * c1, const char * c2) {
+    for(int i = 0;c2[i] != '\0';++i) {
+        if(c1[i] == '\0') return 0;
+        if(c1[i] != c2[i]) return 0;
+    }
+    return 1;
+}
+
 
 // text uses these function sto decide if it should bail out 
 int is_bold(const char * c) {
@@ -155,17 +166,6 @@ int is_inline_tag(const char * c) {
     // check for valid link
 }
 
-struct Global {
-    Token * tokens;
-    int token_idx;
-    void * memory;
-    int memory_allocated;
-    int memory_idx;
-    char * input;
-    int input_idx;
-};
-
-struct Global g = {0};
 
 void * allocate(int memory_needed) {
     int memory_free = (g.memory_allocated-g.memory_idx);
@@ -531,13 +531,10 @@ void parse_quote(struct Node * node) {
     parse_any(node->quote.inside);
 }
 
-Token * prev_token = NULL;
 void parse_rules(struct Node * node) {
-	if (g.tokens == prev_token) {
-		printf("token not consumed: %s\n", token_type_arr[g.tokens->type]);
-		assert(0);
-	}
-	prev_token = g.tokens;
+    // if you look at the same token twice, throw an error
+	assert_s(g.tokens != g.prev_token, token_type_arr[g.tokens->type]);
+	g.prev_token = g.tokens;
 
     switch(g.tokens->type) {
         case otagtext:  return parse_link(node);   
@@ -560,7 +557,6 @@ void parse_rules(struct Node * node) {
     }
 }
 
-// @robustness: If we fail to consume a token, we get a segfault
 void parse_any(struct Node *node) {
     parse_rules(node);
     if (!is_deadend(g.tokens->type)) {
@@ -568,7 +564,6 @@ void parse_any(struct Node *node) {
         parse_any(node->next);
     }
 }
-
 
 void parser(struct Node *node) {
     assert(node);
@@ -662,7 +657,7 @@ void generate_html(struct Node * node) {
             break;
         case NODE_UNDEFINED:
             printf("NODE_UNDEFINED");
-            //assert(0 && "generate_html - NODE_UNDEFINED");
+            assert(0);
             break;
         case NODE_NL:
             printf("\n");
@@ -715,12 +710,13 @@ void generate_html(struct Node * node) {
 }
 
 int main() {
-    g.input_idx             = 0;
-    g.token_idx             = 0;
-    g.memory_allocated      = 13400000;
-    g.memory_idx            = 0;
-    g.memory = malloc(g.memory_allocated);
-    g.tokens = allocate(TOKEN_ARR_MAX * sizeof(Token));
+    g.input_idx         = 0;
+    g.token_idx         = 0;
+    g.memory_allocated  = 13400000;
+    g.memory_idx        = 0;
+    g.memory            = malloc(g.memory_allocated);
+    g.tokens            = allocate(TOKEN_ARR_MAX * sizeof(Token));
+    g.prev_token        = NULL;
     {
         FILE * f = fopen("markdown.txt", "r");
         assert(f);
