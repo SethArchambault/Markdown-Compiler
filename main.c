@@ -56,16 +56,14 @@ void print_debug_log(){
 
 #define CODE_FILE_MAX 600000
 #define INPUT_MAX 600000
-#define TOKEN_ARR_MAX 2000
+#define TOKEN_ARR_MAX 20000
 #define TOKEN_RULES_MAX 6
-
-
 #define TOKEN_STR_MAX 100
 #define TOKEN_RULE_STR_MAX 20
 
 #define CAPTURE_STR_MAX 20000
 
-#define TEMP_MAX 10000
+#define TEMP_MAX 100000
 
 #define CREATE_ENUM(name)   name,
 
@@ -83,7 +81,6 @@ void print_debug_log(){
     t(otagimage)        \
     t(otagtext)         \
     t(href)             \
-    t(exclamation)      \
     t(nl)               \
 
 typedef enum {
@@ -227,7 +224,7 @@ void * allocate(int memory_needed) {
 }
 
 void create_token(int type, char * cursor, int len) {
-    printf("creating token %d, %s %d\n", g.token_idx, token_type_arr[type], len);
+    //printf("creating token %d, %s %d\n", g.token_idx, token_type_arr[type], len);
     Token * token   = &g.tokens[g.token_idx];
     token->type     = type;
     assert(len < CAPTURE_STR_MAX);
@@ -363,6 +360,7 @@ int token_code() {
     return 1;
 }
 
+
 // add new rules here
 int match_token_rule(tk) {
     switch(tk) {
@@ -380,30 +378,29 @@ int match_token_rule(tk) {
         case code:      return token_code();
         case eof:       return token_eof();
         case text:      return token_text();
-        default:printf("match - unknown token %s\n", token_type_arr[tk]);
     }
+	printf("match - unknown token '%s'\n", token_type_arr[tk]);
+
+	// print error
+	// find start of line
+	int line_start = 0;
+	for(int i = 0; i < (int)strlen(g.input); ++i) {
+		printf("%c", g.input[i]);
+		if (g.input[i] == '\n'){ 
+		   if(i > g.input_idx) break;
+		   line_start = i;
+		}
+	}
+	// indent
+	int col = g.input_idx - line_start;
+	for(int i = 0; i < col ; ++i) {
+		printf(" ");
+	}
+	printf("|<-- no match: '%c'\n", g.input[g.input_idx]);
+	assert(0);
     return 0;
 }
 
-void print_error() {
-    // print error
-    int line_start = 0;
-    printf("\n");
-    // find start of line
-    for(int i = 0; i < (int)strlen(g.input); ++i) {
-        printf("%c", g.input[i]);
-        if (g.input[i] == '\n'){ 
-           if(i > g.input_idx) break;
-           line_start = i;
-        }
-    }
-    int col = g.input_idx - line_start;
-    for(int i = 0; i < col ; ++i) {
-        printf(" ");
-    }
-    printf("|<-- no match: '%c'\n", g.input[g.input_idx]);
-    assert(0);
-}
 
 
 #if 1
@@ -445,6 +442,7 @@ int peek(TokenType type) {
     f(NODE_NL)          \
     f(NODE_CODE)        \
     f(NODE_HEADER)      \
+    f(NODE_QUOTE)       \
 
 typedef enum {
     NODES(CREATE_ENUM)
@@ -486,6 +484,9 @@ struct Node{
             int level;
             char * value;
         } header;
+        struct { // NODE_QUOTE
+            struct Node * inside;
+        } quote;
     };
 };
 
@@ -572,10 +573,25 @@ int is_deadend(int type) {
 
 //@TODO; implement config
 void parse_config(struct Node * node) {
+    node = NULL;
     consume(config);
 }
+void parse_quote(struct Node * node) {
+    assert(node);
+    consume(quote);
+    node->type = NODE_QUOTE;
+    node->quote.inside = allocate(sizeof(struct Node));
+    parse_any(node->quote.inside);
+}
 
+Token * prev_token = NULL;
 void parse_rules(struct Node * node) {
+	if (g.tokens == prev_token) {
+		printf("token not consumed: %s\n", token_type_arr[g.tokens->type]);
+		assert(0);
+	}
+	prev_token = g.tokens;
+
     switch(g.tokens->type) {
         case otagtext:  return parse_link(node);   
         case otagimage: return parse_image(node);  
@@ -585,6 +601,7 @@ void parse_rules(struct Node * node) {
         case href:      return;
         case cbold:     return;
         case citalic:   return;
+        case quote:     return parse_quote(node);   
         case obold:     return parse_bold(node);   
         case oitalic:   return parse_italic(node); 
         case text:      return parse_text(node);   
@@ -626,6 +643,11 @@ void print_node(char * t, struct Node *node, int indent) {
             string_cat(t, " \"", TEMP_MAX);
             string_cat(t, node->header.value, TEMP_MAX);
             string_cat(t, "\"", TEMP_MAX);
+            break;
+        }
+        case NODE_QUOTE: {
+            string_cat(t, "QUOTE ", TEMP_MAX);
+            print_node(t, node->quote.inside, inside_indent);
             break;
         }
         case NODE_BOLD: {
@@ -727,6 +749,13 @@ void generate_html(struct Node * node) {
             printf("%s", node->code.value);
             printf("</pre>");
             break;
+        case NODE_QUOTE:
+            printf("<div class='quote'>");
+            generate_html(node->quote.inside);
+            printf("</div>");
+            break;
+		default:
+			printf("node not found: '%s'\n", node_type_arr[node->type]);
     }
     if (node->next != NULL) {
         generate_html(node->next);
@@ -761,11 +790,8 @@ int main() {
         for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
             // this does the most work
             match_found = match_token_rule(rule_idx);
-            if (match_found) break;
+            if (match_found != 0) break;
         }
-        if (match_found == 0){
-            print_error();
-        } // error
     }
     // assert tags are all closed
     for(int i = 0; i < FlagsEnd; ++i) {
