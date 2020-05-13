@@ -1,10 +1,14 @@
-![**_link text_**](link href)
+Here's a line.
+And [normal text **_another line_ bold not italic**](http://anotherline.com) immediately following it.
 
-### a header
+![A cow](http://picsofcows.com)
 
 ```
-working
+    <div>
+        code here
+    </div>
 ```
 
-> some **quoter* goes here
+Then a line with some space
 
+And another one
