@@ -536,7 +536,7 @@ void parse_text(struct Node * node) {
     assert(node);
     node->type = NODE_TEXT;
     Token *text_token = consume(text);
-    node->text.value = allocate(strlen(text_token->value)+2);
+    node->text.value = allocate(strlen(text_token->value)+2); //nl + \0
     strcpy(node->text.value, text_token->value);
     if (peek(nl)) {
         strcat(node->text.value, "\n");
@@ -723,7 +723,7 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, "</i>");
             break;
         case NODE_LINK:
-            t_sprintf_3s(t, "<a src=\"", node->link.src, "\">");
+            t_sprintf_3s(t, "<a href=\"", node->link.src, "\">");
             generate_html(t, node->link.text);
             t_sprintf(t, "</a>");
             break;
