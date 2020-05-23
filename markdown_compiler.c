@@ -39,6 +39,7 @@
     strcat(t, str4);\
 }
 
+// not used
 #define t_sprintf_arr(t,count, vargs...){\
     const char ** args = {##vargs};\
     int needed = 0;\
@@ -49,10 +50,10 @@
     }\
 }\
 
-void save(const char * buffer, const char * base_dir, const char * dir, const char * name, const char * ext) {
+void save(const char * buffer, const char * base_dir, const char * group, const char * article, const char * suffix) {
     char temp[100]; 
     temp[0] = '\0';
-    sprintf(temp, "%s%s%s%s", base_dir, dir, name, ext);
+    sprintf(temp, "%s%s/%s%s", base_dir, group, article, suffix);
     FILE * f = fopen (temp, "w");
     assert(f);
     fwrite(buffer, strlen(buffer), 1, f);
@@ -222,9 +223,11 @@ void create_token(int type, char * cursor, int len) {
     token->type     = type;
     assert(len < CAPTURE_STR_MAX);
     token->value    = allocate(len + 1);
-    for(int i = 0; i < len; ++i) {
+    int i;
+    for(i = 0; i < len; ++i) {
         token->value[i] = cursor[i];
     }
+    token->value[i] = '\0';
     inc(g.token_idx, 1, TOKEN_ARR_MAX);
 }
 
@@ -563,7 +566,7 @@ int is_deadend(int type) {
     }
 }
 
-//@TODO; implement config
+//@TODO; implement config or just delete this
 void parse_config(struct Node * node) {
     node = NULL;
     consume(config);
@@ -608,12 +611,6 @@ void parse_any(struct Node *node) {
         node->next = allocate(sizeof (struct Node));
         parse_any(node->next);
     }
-}
-
-void parser(struct Node *node) {
-    assert(node);
-    parse_any(node);
-    consume(eof);
 }
 
 void print_node(char * t, struct Node *node, int indent) {
@@ -753,7 +750,7 @@ void generate_html(char * t, struct Node * node) {
     }
 }
 
-void markdown_compiler(void * memory, int memory_allocated, const char * arg_filename, const char * arg_articlename) {
+void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title) {
     g.input_idx         = 0;
     g.token_idx         = 0;
     g.memory_allocated  = memory_allocated;
@@ -761,8 +758,13 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_fil
     g.memory            = memory;
     g.tokens            = allocate(TOKEN_ARR_MAX * sizeof(Token));
     g.prev_token        = NULL;
+
+    char temp[TEMP_MAX];
+    temp[0] = '\0';
     {
-        FILE * f = fopen(arg_filename, "r");
+        t_sprintf_2s(temp, "articles/_single/", arg_filename);
+        FILE * f = fopen(temp, "r");
+        temp[0] = '\0';
         assert(f);
         fseek(f, 0, SEEK_END);
         long int length = ftell(f);
@@ -791,7 +793,6 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_fil
     // TOKENS *******************************************************
     
     {
-        char temp[TEMP_MAX];
         temp[0] = '\0';
         for(Token *token = g.tokens; token->type != eof; token = &token[1]) {
             if (token->type == nl) {
@@ -806,13 +807,15 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_fil
                         "(", token->value, ")");
             }
         }
-        save(temp, "debug/", arg_articlename, "_tokens", ".txt");
+        save(temp, "debug/", arg_groupname, arg_articlename, "_tokens.txt");
     }
 
     // PARSER *******************************************************
     
     struct Node node = {};
-    parser(&node);
+    assert(&node);
+    parse_any(&node);
+    consume(eof);
     
     // NODES *******************************************************
     
@@ -820,16 +823,20 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_fil
         char temp[TEMP_MAX];
         temp[0] = '\0';
         print_node(temp, &node, 0);
-        save(temp, "debug/", arg_articlename, "_nodes", ".txt");
+        save(temp, "debug/", arg_groupname, arg_articlename, "_nodes.txt");
     }
 
     // GENERATE HTML *********************************************
     
-    char temp[TEMP_MAX];
     temp[0] = '\0';
+    
+	sprintf(temp, header,title, "style here");
     generate_html(temp, &node);
+	char script[] = "script goes here";
+	assert((strlen(temp) + strlen(footer) + strlen(script)) < TEMP_MAX);
+    sprintf(temp, footer, temp, script);
 
     // HTML *******************************************************
     
-    save(temp, "output/", arg_articlename, "", ".html");
+    save(temp, "output/", arg_groupname, arg_articlename, ".html");
 }

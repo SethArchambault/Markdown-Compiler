@@ -1,0 +1,35 @@
+%s	
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// :script
+function get(id) {return document.getElementById(id); }
+
+window.onclick = function(e) {
+    if (e.target.hasAttribute('data-action')) {
+        var action = e.target.getAttribute('data-action'); 
+        if ("copy" == action) {
+            e.preventDefault();
+            var id = e.target.getAttribute('data-id'); 
+            var el = get(id);
+            var selection = window.getSelection();
+            var range = document.createRange();
+            range.selectNodeContents(el);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand('copy');
+            selection.removeAllRanges();
+            e.target.innerText = "copied!";
+            setTimeout(function() {e.target.innerText= "copy"}, 1000); 
+            
+        }
+    }
+};
+
+%s
+
+</script>
+</body>
+</html>

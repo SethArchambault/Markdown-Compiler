@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<title></title>
+<meta charset="utf-8"/>
+<meta name="description" content="">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+    html {-ms-text-size-adjust: 100%% -webkit-text-size-adjust: 100%% -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; -webkit-tap-highlight-color: transparent;     }
+    body {
+    margin: 0;
+    line-height: 1;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    }
+    ul,ol {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 15px;
+    }
+    h1,h2,h3,h4,h5,h6 {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: inherit;
+    }
+    p {
+    margin-top: 0;
+    margin-bottom: 0;
+    }
+    img {
+    border: 0;
+    max-width: 100%%
+    height: auto;
+    vertical-align: middle;
+    }
+    a {
+    color: inherit;
+    }
+    ::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+    }
+    button {border: 0; margin: 0; padding: 0; text-align: inherit; text-transform: inherit; font: inherit; -webkit-font-smoothing: inherit; letter-spacing: inherit; background: none;       cursor: pointer; overflow: visible; }
+
+</style>
+
+</head>
+<body>
+<div>
+%s
+</div>
+</body>
+</html>
