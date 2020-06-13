@@ -68,12 +68,6 @@ color:#e31c60;
     color:#e31c60;
 }
 
-.container{
-  max-width:610px;
-  margin: 0 auto;
-  padding:20px 10px 20px;
-  display: block;
-}
 .white-box {
 	/*border-radius:3px;*/
 	padding: 20px 0;
@@ -143,18 +137,20 @@ li {
 padding-bottom:10px;
 margin-left:30px;
 }
-
+%s
 </style>
 </head>
 <body>
 <div class="bg">
-    <div class="container" style="padding-top:40px;">
-        <div class="white-box">
+    <div style="display:flex;padding-top:40px;">
+
+        <div style="flex:1;">
+        %s
+        </div>
+        <div style="flex:2;" class="white-box">
 			<div class="side-padding">
 				<div style="text-align:center; font-size:17px;font-family:monospace, Courier;padding:0px 0 20px;">
                     <div class="normal_font" style="font-weight:100;font-size:30px;">(<span style="font-size:20px;" class="accent">♡</span>)</div>
-				
-
 				</div>
 			</div>
 			<hr>

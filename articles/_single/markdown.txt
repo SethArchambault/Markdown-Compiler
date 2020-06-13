@@ -1,3 +1,11 @@
+
+
+# This is a header
+
+You could be typing **something**.
+
+Here's a [link](http://links.com).
+
 Here's a line.
 And [normal text **_another line_ bold not italic**](http://anotherline.com) immediately following it.
 

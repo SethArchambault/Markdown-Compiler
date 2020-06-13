@@ -25,6 +25,7 @@ struct Link {
 #define TAG_MAX             20
 #define CONFIG_LINKS_MAX    20
 
+// not used
 struct Config {
     char template[CONFIG_TEMPLATE_MAX];
     char tags[CONFIG_TAGS_MAX][TAG_MAX];
@@ -41,28 +42,39 @@ void read_file(char * filename, char * buffer, int max) {
     fread(buffer, len, 1, f);
 }
 
+
 #define HEADER_MAX 10000
 #define FOOTER_MAX 1000
 int main() {
+    /*
 	char groups[GROUPS_MAX][GROUP_NAME_MAX] = {
 		"programming",
 		"health",
 		"whiteness",
 	};
-	int group_idx[GROUPS_MAX] = {0};
-	char articles[GROUPS_MAX][GROUP_ARTICLES_MAX][ARTICLE_NAME_MAX] = {0};
+    */
+	//int group_idx[GROUPS_MAX] = {0};
+	//char articles[GROUPS_MAX][GROUP_ARTICLES_MAX][ARTICLE_NAME_MAX] = {};
     int memory_allocated = 13400000;
-    void * memory = malloc(memory_allocated);
+    char * memory = malloc(memory_allocated);
+    for (int i = 0; i < memory_allocated;++i) {
+        memory[i] = 'x';
+    }
     char header[HEADER_MAX];
     char footer[FOOTER_MAX];
     read_file("templates/single_header.chtml", header, HEADER_MAX);
     read_file("templates/single_footer.chtml", footer, FOOTER_MAX);
     char title[1000] = "title goes here";
-    markdown_compiler(memory, memory_allocated, "_single", "markdown.txt", "test", header, footer, title);
-    markdown_compiler(memory, memory_allocated, "_single", "markdown2.txt", "test2", header, footer, title);
+
+    struct Link sidebar[] = {
+        {"Hello", "http://hello.com"}
+    };
+    const char * nav = "<a href='http://hello.html'>hello</a>";
+    markdown_compiler(memory, memory_allocated, "_single", "markdown.txt", "test", header, footer, title, nav);
+    markdown_compiler(memory, memory_allocated, "_single", "markdown2.txt", "test2", header, footer, title, nav);
 
     // read file
-    printf("%d\n", TEMP_MAX);
-    
+    //printf("%d\n", TEMP_MAX);
+    printf("DONE\n");
     return 0;
 }

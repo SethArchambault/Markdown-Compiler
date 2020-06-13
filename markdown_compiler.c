@@ -50,6 +50,7 @@
     }\
 }\
 
+
 void save(const char * buffer, const char * base_dir, const char * group, const char * article, const char * suffix) {
     char temp[100]; 
     temp[0] = '\0';
@@ -611,6 +612,9 @@ void parse_any(struct Node *node) {
         node->next = allocate(sizeof (struct Node));
         parse_any(node->next);
     }
+    else {
+        node->next = 0;
+    }
 }
 
 void print_node(char * t, struct Node *node, int indent) {
@@ -620,6 +624,7 @@ void print_node(char * t, struct Node *node, int indent) {
     for (int i = 0; i < indent;++i) {
         t_sprintf(t, " ");
     }
+    //assert(node->type);
     switch(node->type){
         case NODE_HEADER: {
             t_sprintf(t, "HEADER ");
@@ -750,7 +755,7 @@ void generate_html(char * t, struct Node * node) {
     }
 }
 
-void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title) {
+void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title, const char * nav) {
     g.input_idx         = 0;
     g.token_idx         = 0;
     g.memory_allocated  = memory_allocated;
@@ -799,12 +804,12 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
                 t_sprintf_2s(temp, token_type_arr[token->type], "\n");
             }
             else if (token->value == NULL) {
-                t_sprintf_2s(temp, token_type_arr[token->type], "\n");
+                t_sprintf_2s(temp, token_type_arr[token->type], "() ");
             }
             else {
                 t_sprintf_4s(temp, 
                         token_type_arr[token->type],
-                        "(", token->value, ")");
+                        "(", token->value, ") ");
             }
         }
         save(temp, "debug/", arg_groupname, arg_articlename, "_tokens.txt");
@@ -830,10 +835,12 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     
     temp[0] = '\0';
     
-	sprintf(temp, header,title, "style here");
+	sprintf(temp, header, title, "style here", nav);
+
     generate_html(temp, &node);
 	char script[] = "script goes here";
-	assert((strlen(temp) + strlen(footer) + strlen(script)) < TEMP_MAX);
+    // @dangerous: this seems subject to glitches	
+    assert((strlen(temp) + strlen(footer) + strlen(script)) < TEMP_MAX);
     sprintf(temp, footer, temp, script);
 
     // HTML *******************************************************
