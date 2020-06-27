@@ -40,7 +40,10 @@ void read_file(char * filename, char * buffer, int max) {
     assert(len < max);
     fseek(f, 0, SEEK_SET);
     fread(buffer, len, 1, f);
+    buffer[len] = '\0';
 }
+
+struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
 
 
 #define HEADER_MAX 10000
@@ -64,17 +67,22 @@ int main() {
     char footer[FOOTER_MAX];
     read_file("templates/single_header.chtml", header, HEADER_MAX);
     read_file("templates/single_footer.chtml", footer, FOOTER_MAX);
-    char title[1000] = "title goes here";
 
-    struct Link sidebar[] = {
-        {"Hello", "http://hello.com"}
+
+    char programming_nav[] = "<a href='/programming'>Programming</a>";
+
+// struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
+    struct Article articles[] = {
+        {"_single", "markdown.txt", "test", header, footer, "markdown 1" , programming_nav},
+        {"_single", "markdown2.txt", "test", header, footer, "markdown 2", programming_nav},
+        {"", "", "", "", "", "", ""},
     };
-    const char * nav = "<a href='http://hello.html'>hello</a>";
-    markdown_compiler(memory, memory_allocated, "_single", "markdown.txt", "test", header, footer, title, nav);
-    markdown_compiler(memory, memory_allocated, "_single", "markdown2.txt", "test2", header, footer, title, nav);
 
+    for (int i = 0; articles[i].group_name[0] != '\0'; ++i) {
+        struct Article * a = &articles[i];
+        markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title, a->nav);
+    }
     // read file
-    //printf("%d\n", TEMP_MAX);
     printf("DONE\n");
     return 0;
 }
