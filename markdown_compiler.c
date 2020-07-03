@@ -232,6 +232,7 @@ void create_token(int type, char * cursor, int len) {
     inc(g.token_idx, 1, TOKEN_ARR_MAX);
 }
 
+
 // Maybe add log files.
 void create_blank_token(int type) {
     //printf("creating token %d, %s\n", g.token_idx, token_type_arr[type]);
@@ -713,9 +714,9 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, node->text.value);
             break;
         case NODE_HEADER:
-            sprintf(t, "%s<h%d id='%s'>", t, node->header.level, node->header.value);
+            sprintf(t, "%s<h%d id='%s'><a href='#%s'>", t, node->header.level, node->header.value, node->header.value);
             t_sprintf(t, node->header.value);
-            sprintf(t, "%s</h%d>", t, node->header.level);
+            sprintf(t, "%s</a></h%d>", t, node->header.level);
             break;
         case NODE_BOLD:
             t_sprintf(t, "<b>");
@@ -738,9 +739,24 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, "\">");
             break;
         case NODE_CODE:
-            t_sprintf_3s(t, "<pre id='pre'>", node->code.value,
-                    "</pre>\n");
-                    //"</pre><div class='code-copy'><a href='#' data-action='copy' data-id='pre'>copy</a></div>\n");
+            t_sprintf(t, "<pre id='pre'>");
+            int temp_i = strlen(t);
+            int value_i = 0;
+            for (;node->code.value[value_i] != '\0';) {
+                assert_d(temp_i < TEMP_MAX, temp_i);
+                char value_char = node->code.value[value_i];
+                if (value_char == '<') {
+                    t_sprintf(t, "&lt;");
+                    temp_i += 4;
+                    value_i += 1;
+                }
+                else {
+                    t[temp_i] = value_char;
+                    ++temp_i;
+                    ++value_i;
+                }
+            }
+            t_sprintf(t, "</pre>");
             break;
         case NODE_QUOTE:
             t_sprintf(t, "<div class='quote'>");
@@ -840,7 +856,7 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
 	sprintf(temp, header, title, "style here", nav);
 
     generate_html(temp, &node);
-	char script[] = "script goes here";
+	char script[] = "";
     // @dangerous: this seems subject to glitches	
     assert((strlen(temp) + strlen(footer) + strlen(script)) < TEMP_MAX);
     sprintf(temp, footer, temp, script);

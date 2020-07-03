@@ -3,3 +3,5 @@ main
 codeclap_markdown_compiler.ccws
 debug/*
 output/*
+series/*
+series

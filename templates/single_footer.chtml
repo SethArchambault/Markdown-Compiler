@@ -3,9 +3,21 @@
         </div>
     </div>
 </div>
+<div id="top-button" style="display:none;position:fixed;bottom:10px; left:10px;">
+<a href="#" style="text-decoration:none;">&#x1F51D;</a>
+</div>
 <script>
 // :script
 function get(id) {return document.getElementById(id); }
+
+window.onscroll = function (e) {  
+    let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    if(scrollTop == 0) {
+        get('top-button').style.display = "none";
+    } else {
+        get('top-button').style.display = "block";
+    }
+}
 
 window.onclick = function(e) {
     if (e.target.hasAttribute('data-action')) {

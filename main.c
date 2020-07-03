@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // could include from a common file
 #define assert(cond) {if (!(cond)){ printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
@@ -9,8 +10,8 @@
 #define GROUP_ARTICLES_MAX  20
 #define ARTICLE_NAME_MAX  	20
 
-#define LINK_NAME_MAX       20
-#define LINK_SRC_MAX        20
+#define LINK_NAME_MAX       200
+#define LINK_SRC_MAX        200
 
 #define TEMP_MAX            1000
 extern void markdown_compiler();
@@ -45,9 +46,15 @@ void read_file(char * filename, char * buffer, int max) {
 
 struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
 
+void createHtmlFromLinks(char * html, struct Link *link) {
+    for (int i = 0; strlen(link[i].src) != 0; ++i) { 
+        sprintf(html, "%s<a href='%s'>%s</a><br>",
+                html, link[i].src, link[i].name);
+    }
+}
 
 #define HEADER_MAX 10000
-#define FOOTER_MAX 1000
+#define FOOTER_MAX 10000
 int main() {
     /*
 	char groups[GROUPS_MAX][GROUP_NAME_MAX] = {
@@ -70,16 +77,36 @@ int main() {
 
 
         //"<a href='#'></a><br>"
-    char programming_nav[] = "<A href='#Day 4 - A Simple Compiler'>Day 4 - A simple Compiler</a><br>"
-        "<a href='#Day 9 - Codeclap'>Day 9 - Codeclap</a><br>"
-        "<a href='#Day 13 - Nested Nodes'>Day 13 - Nested Nodes</a><br>"
-        "<a href='#Day 20 - Start with the inside first'>Day 20 - Start with the inside first</a><br>"
-        "<a href='#Day 25 - Segfault'>Day 25 - Segfault</a><br>"
-        "<a href='#Day 26 - conclusion'>Day 26 - Conclusion</a><br>";
+    char programming_nav[1000] = {0};
+    {
+        struct Link link[] = {
+            {"Day 4 - A simple Compiler","#Day 4 - A simple Compiler"},
+            {"Day 9 - Codeclap", "#Day 9 - Codeclap"},
+            {"Day 13 - Nested Nodes", "#Day 13 - Nested Nodes"},
+            {"Day 20 - Start with the inside first", "#Day 20 - Start with the inside first"},
+            {"Day 25 - Segfault", "#Day 25 - Segfault"},
+              {"Using a switch statement as a data structure", "#Using a switch statement as a data structure"},
+            {"Conclusion", "#Conclusion"},
+            {"",""}
+        };
+        createHtmlFromLinks(programming_nav, link);
+    }
+    char codelog_nav[1000] = {0};
+    {
+        struct Link link[] = {
+            {"Markdown to HTML Compiler in C" ,"/markdown-to-html-compiler-in-c"},
+            {"One Level Deeper - A Handmade Lesson applied to React Native", "One Level Deeper - A Handmade Lesson applied to React Native"},
+            {"",""}
+        };
+        createHtmlFromLinks(codelog_nav, link);
+    }
+
+
 
 // struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
     struct Article articles[] = {
-        {"", "07_making_this_website.txt", "making-this-website", header, footer, "Making This Website" , programming_nav}, // delete
+        {"", "code-log-on-sethdetroit.txt", "codelog", header, footer, "Code Log" , codelog_nav}, 
+        {"", "07_making_this_website.txt", "making-this-website", header, footer, "Making This Website" , programming_nav}, 
         {"", "07_making_this_website.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
         {"", "", "", "", "", "", ""},
     };

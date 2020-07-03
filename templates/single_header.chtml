@@ -55,14 +55,6 @@ p {
   margin-top: 0;
   margin-bottom: 0;
 }
-a {
-  text-decoration: underline;
-  color:#666666;
-color:#e31c60;
-}
-a:hover {
-color:#e31c60;
-}
 .rise_div {
 }
 .rise_div:hover {
@@ -103,6 +95,18 @@ h1 {
   text-align: center;
 	color:#e31c60;
 	font-size:14px;
+}
+a {
+  text-decoration: underline;
+  color:#666666;
+  color:#e31c60;
+}
+/* h1 can be a link, in which case we need to override color */
+h1 a {
+    text-decoration:none;
+}
+a:hover {
+color:#e31c60;
 }
 h2 {
   padding: 30px 0 0;
@@ -153,7 +157,7 @@ margin-left:30px;
         <div style="margin:0 auto;max-width:800px;" class="white-box">
 			<div class="side-padding">
 				<div style="text-align:center; font-size:17px;font-family:monospace, Courier;padding:0px 0 20px;">
-                    <div class="normal_font" style="font-weight:100;font-size:30px;">(<span style="font-size:20px;" class="accent">♡</span>)</div>
+                    <div class="normal_font" style="font-weight:100;font-size:30px;">(<a href="/" style="text-decoration:none;"><span style="font-size:20px;" class="accent">♡</span></a>)</div>
 				</div>
                 <div style="padding-left:20px;padding-bottom:50px;">
                 %s
