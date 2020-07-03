@@ -69,16 +69,22 @@ int main() {
     read_file("templates/single_footer.chtml", footer, FOOTER_MAX);
 
 
-    char programming_nav[] = "<a href='/programming'>Programming</a>";
+        //"<a href='#'></a><br>"
+    char programming_nav[] = "<A href='#Day 4 - A Simple Compiler'>Day 4 - A simple Compiler</a><br>"
+        "<a href='#Day 9 - Codeclap'>Day 9 - Codeclap</a><br>"
+        "<a href='#Day 13 - Nested Nodes'>Day 13 - Nested Nodes</a><br>"
+        "<a href='#Day 20 - Start with the inside first'>Day 20 - Start with the inside first</a><br>"
+        "<a href='#Day 25 - Segfault'>Day 25 - Segfault</a><br>"
+        "<a href='#Day 26 - conclusion'>Day 26 - Conclusion</a><br>";
 
 // struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
     struct Article articles[] = {
-        {"_single", "markdown.txt", "test", header, footer, "markdown 1" , programming_nav},
-        {"_single", "markdown2.txt", "test", header, footer, "markdown 2", programming_nav},
+        {"", "07_making_this_website.txt", "making-this-website", header, footer, "Making This Website" , programming_nav}, // delete
+        {"", "07_making_this_website.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
         {"", "", "", "", "", "", ""},
     };
 
-    for (int i = 0; articles[i].group_name[0] != '\0'; ++i) {
+    for (int i = 0; articles[i].file[0] != '\0'; ++i) {
         struct Article * a = &articles[i];
         markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title, a->nav);
     }

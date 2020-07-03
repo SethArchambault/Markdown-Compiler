@@ -73,7 +73,7 @@ void save(const char * buffer, const char * base_dir, const char * group, const 
 
 #define CAPTURE_STR_MAX 20000
 
-#define TEMP_MAX 100000
+#define TEMP_MAX 1000000
 
 #define CREATE_ENUM(name)   name,
 
@@ -340,7 +340,7 @@ int token_src() {
 
 int token_code() {
     const char * front  = "```";
-    const char * back   = "```";
+    const char * back   = "```\n";
     int front_len       = strlen(front);
     int back_len        = strlen(back);
     char * cursor       = &g.input[g.input_idx];
@@ -713,7 +713,7 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, node->text.value);
             break;
         case NODE_HEADER:
-            sprintf(t, "%s<h%d>", t, node->header.level);
+            sprintf(t, "%s<h%d id='%s'>", t, node->header.level, node->header.value);
             t_sprintf(t, node->header.value);
             sprintf(t, "%s</h%d>", t, node->header.level);
             break;
@@ -733,13 +733,14 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, "</a>");
             break;
         case NODE_IMAGE:
-            t_sprintf_3s(t, "<img src=\"", node->image.src, "\" alt=\"");
+            t_sprintf_3s(t, "<img src=\"/img/series/", node->image.src, "\" alt=\"");
             generate_html(t, node->image.text);
             t_sprintf(t, "\">");
             break;
         case NODE_CODE:
             t_sprintf_3s(t, "<pre id='pre'>", node->code.value,
-                    "</pre><div class='code-copy'><a href='#' data-action='copy' data-id='pre'>copy</a></div>\n");
+                    "</pre>\n");
+                    //"</pre><div class='code-copy'><a href='#' data-action='copy' data-id='pre'>copy</a></div>\n");
             break;
         case NODE_QUOTE:
             t_sprintf(t, "<div class='quote'>");
@@ -767,7 +768,7 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     char temp[TEMP_MAX];
     temp[0] = '\0';
     {
-        t_sprintf_2s(temp, "articles/_single/", arg_filename);
+        t_sprintf_2s(temp, "../html_generator/series/", arg_filename);
         FILE * f = fopen(temp, "r");
         temp[0] = '\0';
         assert(f);
@@ -786,6 +787,7 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
         match_found = 0; 
         for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
             // this does the most work
+            // @TODO: danger! Infinite loop if no space at end of file..
             match_found = match_token_rule(rule_idx);
             if (match_found != 0) break;
         }
@@ -845,5 +847,5 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
 
     // HTML *******************************************************
     
-    save(temp, "output/", arg_groupname, arg_articlename, ".html");
+    save(temp, "../public/series/", arg_groupname, arg_articlename, ".html");
 }
