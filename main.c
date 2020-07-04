@@ -95,7 +95,7 @@ int main() {
     {
         struct Link link[] = {
             {"Markdown to HTML Compiler in C" ,"/markdown-to-html-compiler-in-c"},
-            {"One Level Deeper - A Handmade Lesson applied to React Native", "One Level Deeper - A Handmade Lesson applied to React Native"},
+            {"One Level Deeper - A Handmade Lesson applied to React Native", "#One Level Deeper - A Handmade Lesson applied to React Native"},
             {"",""}
         };
         createHtmlFromLinks(codelog_nav, link);
