@@ -113,6 +113,13 @@ typedef struct {
     char str[TOKEN_RULE_STR_MAX];
 } TokenRule;
 
+#define LINK_NAME_MAX       200
+#define LINK_SRC_MAX        200
+typedef struct {
+    char name[LINK_NAME_MAX];
+    char src[LINK_SRC_MAX];
+} Link;
+
 struct Global {
     Token * tokens;
     Token * prev_token;
@@ -122,6 +129,9 @@ struct Global {
     int memory_idx;
     char * input;
     int input_idx;
+    int input_len;
+    Link header_links[100];
+    int header_links_idx;
 };
 
 struct Global g = {0};
@@ -145,7 +155,7 @@ int flags[FlagsEnd] = {0};
 
 int is_eol(const char c) {
     if(c == '\n') return 1;
-    if(c == '\0') return 1;
+    if(c == '\0') return 1; // if this gets hit, it should be an eof token
     return 0;
 }
 
@@ -296,7 +306,7 @@ int token_config() {
     // capture text until you find a link or the end of the line
     int i = 0;
     if (cursor[i] != ':') return 0;
-    printf("token config match\n");
+    //printf("token config match\n");
     ++i;
     for(;;++i) {
         if (is_eol(cursor[i])) break;
@@ -351,7 +361,7 @@ int token_code() {
         if (cursor[i] == '\0') return 0;
         if (is_match(&cursor[i], back)) break;
     }
-    create_token(code, &cursor[front_len], i-front_len);
+    create_token(code, &cursor[front_len], i-back_len);
     i += back_len;
     inc(g.input_idx, i, INPUT_MAX);
     return 1;
@@ -532,6 +542,14 @@ void parse_header(struct Node * node) {
     Token *text_token = consume(text);
     node->header.value = allocate(strlen(text_token->value)+1);
     strcpy(node->header.value, text_token->value);
+    if (node->header.level == 1) {
+        // @danger - I'm being lazy! This could cause segfault
+        // but I guess my gcc flag will point that out..
+        //printf("header value %s\n", node->header.value);
+        sprintf(g.header_links[g.header_links_idx].name, "%s", node->header.value);
+        sprintf(g.header_links[g.header_links_idx].src, "#%s", node->header.value);
+        ++g.header_links_idx;
+    }
 }
 
 void parse_text(struct Node * node) {
@@ -697,6 +715,7 @@ void print_node(char * t, struct Node *node, int indent) {
 ********************* GENERATE HTML ************************** 
 *************************************************************/
 
+
 void generate_html(char * t, struct Node * node) {
     assert(node);
     switch(node->type){
@@ -738,26 +757,23 @@ void generate_html(char * t, struct Node * node) {
             generate_html(t, node->image.text);
             t_sprintf(t, "\">");
             break;
-        case NODE_CODE:
-            t_sprintf(t, "<pre id='pre'>");
-            int temp_i = strlen(t);
-            int value_i = 0;
-            for (;node->code.value[value_i] != '\0';) {
-                assert_d(temp_i < TEMP_MAX, temp_i);
-                char value_char = node->code.value[value_i];
-                if (value_char == '<') {
-                    t_sprintf(t, "&lt;");
-                    temp_i += 4;
-                    value_i += 1;
-                }
-                else {
-                    t[temp_i] = value_char;
-                    ++temp_i;
-                    ++value_i;
-                }
-            }
-            t_sprintf(t, "</pre>");
-            break;
+		case NODE_CODE:{
+			t_sprintf(t, "<pre id='pre'>");
+			int value_i = 0;
+			for (;node->code.value[value_i] != '\0';) {
+				char value_char = node->code.value[value_i];
+				if (value_char == '<') {
+					strcat(t, "&lt;");
+					value_i += 4;
+				}
+				else {
+                    sprintf(&t[strlen(t)], "%c", value_char);
+					++value_i;
+				}
+			}
+			t_sprintf(t, "</pre>");
+			break;
+		}
         case NODE_QUOTE:
             t_sprintf(t, "<div class='quote'>");
             generate_html(t, node->quote.inside);
@@ -775,29 +791,31 @@ void generate_html(char * t, struct Node * node) {
 void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title, const char * nav) {
     g.input_idx         = 0;
     g.token_idx         = 0;
+    g.input_len         = 0;
     g.memory_allocated  = memory_allocated;
     g.memory_idx        = 0;
     g.memory            = memory;
     g.tokens            = allocate(TOKEN_ARR_MAX * sizeof(Token));
     g.prev_token        = NULL;
+    g.header_links_idx  = 0;
 
-    char temp[TEMP_MAX];
-    temp[0] = '\0';
     {
+        char temp[TEMP_MAX] = {0};
         t_sprintf_2s(temp, "../html_generator/series/", arg_filename);
         FILE * f = fopen(temp, "r");
         temp[0] = '\0';
         assert(f);
         fseek(f, 0, SEEK_END);
-        long int length = ftell(f);
-        g.input = allocate(length+1);
+        g.input_len = ftell(f);
+        g.input = allocate(g.input_len+1);
         fseek(f, 0, SEEK_SET);
-        fread(g.input, length, 1, f );
+        fread(g.input, g.input_len, 1, f );
         fclose(f);
-        g.input[length] = '\0';
+        g.input[g.input_len] = '\0';
     }
     
     // TOKENIZER ***************************************************
+    //printf("tokenizer %s\n", arg_articlename);
     
     for (int match_found = 0;match_found != -1;) { // raw input loop
         match_found = 0; 
@@ -807,6 +825,11 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
             match_found = match_token_rule(rule_idx);
             if (match_found != 0) break;
         }
+		if (g.input_idx >= g.input_len)  {
+            // @hack - needed in case there is no newline at the end of a file
+			create_blank_token(eof);
+			break;
+		}
     }
     // assert tags are all closed
     for(int i = 0; i < FlagsEnd; ++i) {
@@ -814,8 +837,10 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     }
 
     // TOKENS *******************************************************
+    //printf("tokens\n");
     
     {
+        char temp[TEMP_MAX] = {0};
         temp[0] = '\0';
         for(Token *token = g.tokens; token->type != eof; token = &token[1]) {
             if (token->type == nl) {
@@ -841,7 +866,7 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     consume(eof);
     
     // NODES *******************************************************
-    
+    //printf("nodes\n");
     {
         char temp[TEMP_MAX];
         temp[0] = '\0';
@@ -850,10 +875,20 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     }
 
     // GENERATE HTML *********************************************
+    //printf("generate html\n");
     
+    char temp[TEMP_MAX];
     temp[0] = '\0';
     
-	sprintf(temp, header, title, "style here", nav);
+    {
+        char header_links_html[10000] = {0};
+        for (int i = 0; i < g.header_links_idx; ++i) { 
+            Link * link = &g.header_links[i];
+            sprintf(header_links_html, "%s<a href='%s'>%s</a><br>",
+                    header_links_html, link->src, link->name);
+        }
+        sprintf(temp, header, title, "style here", header_links_html);
+    }
 
     generate_html(temp, &node);
 	char script[] = "";
@@ -863,5 +898,6 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
 
     // HTML *******************************************************
     
+    //printf("html\n");
     save(temp, "../public/series/", arg_groupname, arg_articlename, ".html");
 }

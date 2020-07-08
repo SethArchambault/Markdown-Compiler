@@ -96,6 +96,11 @@ h1 {
 	color:#e31c60;
 	font-size:18px;
 }
+h2 {
+    background-color:#efefef;
+    padding: 10px 10px 10px;
+    border-radius:10px;
+}
 a {
   text-decoration: underline;
   color:#e31c60;
@@ -113,9 +118,6 @@ h2 a, h3 a{
 }
 h1 a:hover, h2 a:hover, h3 a:hover {
     text-decoration:underline;
-}
-h2 {
-  padding: 30px 0 0;
 }
 p {
   padding: 5px 0 15px;
@@ -153,21 +155,78 @@ margin-left:30px;
 .newline {
     padding-bottom:10px;
 }
+/* nav */
+
+.main-container {
+    flex-direction:row;
+}
+.side-nav {
+    left:0;padding:0px 20px;position:fixed;width:300px;overflow:scroll;
+    box-sizing:border-box;
+    height:90%%;
+}
+.nav-button {
+    display:none;
+}
+@media(max-width:1100px) {
+    .nav-button {
+        display:block;
+        font-weight:bold; top:10px;
+        padding:10px 10px 16px;
+        text-align:center;
+        background:rgba(255,255,255,0.9);
+        color:#e31c60;
+        font-size:30px;
+    }
+    .main-container {
+        flex-direction:column;
+    }
+    .side-nav {
+        box-sizing:border-box;
+        padding:20px;
+        display:none;
+    }
+    .nav-wrapper{
+        position:fixed;
+        top:10px;
+    }
+    .nav-wrapper:hover .side-nav {
+        position:fixed;
+        top:20px;
+        display:block;
+        background:rgba(255,255,255,0.9);
+    }
+    .nav-wrapper:hover .nav-button {
+            display:none;
+    }
+    .content-box {
+        margin: 0 auto;
+    }
+    .side-nav-spacer {
+        display:none;
+    }
+    img {
+        display:none;
+    }
+}
 %s
 </style>
 </head>
 <body>
 <div class="bg">
-    <div style="padding:40px 10px;">
-
-        <div style="margin:0 auto;max-width:800px;" class="white-box">
+    <div class="main-container" style="display:flex;padding:40px 10px;">
+        <div class="nav-wrapper">
+            <div class="nav-button" style="transform:rotate(90deg);">|||</div>
+            <div class="side-nav">
+            %s
+            </div>
+        </div>
+        <div class="side-nav-spacer" style="width:300px;"></div>
+        <div style="flex:1;width:100%%;max-width:800px;" class="content-box white-box">
 			<div class="side-padding">
 				<div style="text-align:center; font-size:17px;font-family:monospace, Courier;padding:0px 0 20px;">
                     <div class="normal_font" style="font-weight:100;font-size:30px;">(<a href="/" style="text-decoration:none;"><span style="font-size:20px;" class="accent">♡</span></a>)</div>
 				</div>
-                <div style="padding-left:20px;padding-bottom:50px;">
-                %s
-                </div>
 			</div>
 			<hr>
 			<div style="box-sizing:border-box;padding:20px 30px 20px;">

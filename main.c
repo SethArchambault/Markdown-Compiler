@@ -94,8 +94,9 @@ int main() {
     char codelog_nav[1000] = {0};
     {
         struct Link link[] = {
-            {"Markdown to HTML Compiler in C" ,"/markdown-to-html-compiler-in-c"},
+            {"An alternative to a global stylesheet in React Native", "#An alternative to a global stylesheet in React Native"},
             {"One Level Deeper - A Handmade Lesson applied to React Native", "#One Level Deeper - A Handmade Lesson applied to React Native"},
+            {"Markdown to HTML Compiler in C" ,"/markdown-to-html-compiler-in-c"},
             {"",""}
         };
         createHtmlFromLinks(codelog_nav, link);
@@ -106,7 +107,6 @@ int main() {
 // struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
     struct Article articles[] = {
         {"", "code-log-on-sethdetroit.txt", "codelog", header, footer, "Code Log" , codelog_nav}, 
-        {"", "07_making_this_website.txt", "making-this-website", header, footer, "Making This Website" , programming_nav}, 
         {"", "07_making_this_website.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
         {"", "", "", "", "", "", ""},
     };
@@ -114,6 +114,7 @@ int main() {
     for (int i = 0; articles[i].file[0] != '\0'; ++i) {
         struct Article * a = &articles[i];
         markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title, a->nav);
+        //printf("done %d\n", i);
     }
     // read file
     printf("DONE\n");
