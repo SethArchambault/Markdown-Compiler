@@ -884,7 +884,7 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
         char header_links_html[10000] = {0};
         for (int i = 0; i < g.header_links_idx; ++i) { 
             Link * link = &g.header_links[i];
-            sprintf(header_links_html, "%s<a href='%s'>%s</a><br>",
+            sprintf(header_links_html, "%s<a href='%s'>%s</a>",
                     header_links_html, link->src, link->name);
         }
         sprintf(temp, header, title, "style here", header_links_html);
