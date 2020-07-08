@@ -52,7 +52,7 @@
 
 
 void save(const char * buffer, const char * base_dir, const char * group, const char * article, const char * suffix) {
-    char temp[100]; 
+    char temp[1000]; 
     temp[0] = '\0';
     sprintf(temp, "%s%s/%s%s", base_dir, group, article, suffix);
     FILE * f = fopen (temp, "w");

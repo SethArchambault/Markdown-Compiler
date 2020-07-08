@@ -44,7 +44,7 @@ void read_file(char * filename, char * buffer, int max) {
     buffer[len] = '\0';
 }
 
-struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
+struct Article { char group_name[30]; char file[60]; char article_name[200]; char *header; char *footer; char *title; char *nav; };
 
 void createHtmlFromLinks(char * html, struct Link *link) {
     for (int i = 0; strlen(link[i].src) != 0; ++i) { 
@@ -107,7 +107,8 @@ int main() {
 // struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
     struct Article articles[] = {
         {"", "code-log-on-sethdetroit.txt", "codelog", header, footer, "Code Log" , codelog_nav}, 
-        {"", "07_making_this_website.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
+        {"", "projects/01_markdown_to_html_compiler_in_c.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
+        {"", "projects/02_mapping_tech_for_protest.txt", "n6cyAAW3RsgKSV1P2k2Iz1rACqkBdFze0aVkf3nIvqILns8NlnusAXtm3am34UylE87hDNqK7ezPGFKxaZNQ", header, footer, "Mapping Tech for Protest" , programming_nav},
         {"", "", "", "", "", "", ""},
     };
 
