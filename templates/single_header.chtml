@@ -161,9 +161,18 @@ margin-left:30px;
     flex-direction:row;
 }
 .side-nav {
-    left:0;padding:0px 20px;position:fixed;width:300px;overflow:scroll;
+    left:0;padding:0px 0 0 10px;position:fixed;width:300px;overflow:scroll;
     box-sizing:border-box;
     height:90%%;
+}
+.side-nav a {
+    color:#5f575a;
+}
+.side-nav a:hover {
+    color:#e31c60;
+}
+.side-nav a:visited {
+    color:#9e8e94;
 }
 .nav-button {
     display:none;
