@@ -131,7 +131,7 @@ struct Global {
     Token * tokens;
     Token * prev_token;
     int token_idx;
-    void * memory;
+    char * memory;
     int memory_allocated;
     int memory_idx;
     char * input;
@@ -376,7 +376,7 @@ int token_code() {
 
 
 // :add new rules here
-int match_token_rule(tk) {
+int match_token_rule(TokenType tk) {
     switch(tk) {
         case link:      return token_toggle(tk, tag_text_opened,  "[",  0);
         case image:     return token_toggle(tk, tag_text_opened,  "![", 0);
@@ -394,6 +394,7 @@ int match_token_rule(tk) {
         case code:      return token_code();
         case eof:       return token_eof();
         case text:      return token_text();
+        case TokenTypeEnd:      break;
     }
 	printf("match - unknown token '%s'\n", token_type_arr[tk]);
 
@@ -603,6 +604,7 @@ int is_deadend(int type) {
 
 //@TODO; implement config or just delete this
 void parse_config(struct Node * node) {
+    assert(node);
     node = NULL;
     consume(config);
 }
@@ -836,7 +838,7 @@ void generate_html(char * t, struct Node * node) {
     }
 }
 
-void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title, const char * nav) {
+void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title) {
     g.input_idx         = 0;
     g.token_idx         = 0;
     g.input_len         = 0;
@@ -909,7 +911,6 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     // PARSER *******************************************************
     
     struct Node node = {};
-    assert(&node);
     parse_any(&node);
     consume(eof);
     

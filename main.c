@@ -2,7 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 
-struct Article { char group_name[30]; char file[60]; char article_name[200]; char *header; char *footer; char *title; char *nav; };
+struct Article { 
+    char group_name[30]; char file[60]; char article_name[200]; 
+    char *header; char *footer; char *title;
+};
 
 #define HEADER_MAX 10000
 #define FOOTER_MAX 10000
@@ -60,29 +63,23 @@ void createHtmlFromLinks(char * html, struct Link *link) {
 }
 
 int main() {
-    /*
-	char groups[GROUPS_MAX][GROUP_NAME_MAX] = {
-		"programming",
-		"health",
-		"whiteness",
-	};
-    */
-	//int group_idx[GROUPS_MAX] = {0};
-	//char articles[GROUPS_MAX][GROUP_ARTICLES_MAX][ARTICLE_NAME_MAX] = {};
     int memory_allocated = 13400000;
     char * memory = malloc(memory_allocated);
+
+    /* some memory test
     for (int i = 0; i < memory_allocated;++i) {
         memory[i] = 'x';
     }
+    */
+
+    // templates
     read_file("templates/single_header.chtml", header, HEADER_MAX);
     read_file("templates/single_footer.chtml", footer, FOOTER_MAX);
 
-
-// struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
-
+    // check out articles.h if you want to add new routes..
     for (int i = 0; articles[i].file[0] != '\0'; ++i) {
         struct Article * a = &articles[i];
-        markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title, a->nav);
+        markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title);
         //printf("done %d\n", i);
     }
     // read file
