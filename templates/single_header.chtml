@@ -16,6 +16,7 @@ html{
 }
 img {
     max-width:100%%;
+    border: 1px solid #eee;
 }
 .img-padding {
     padding:40px 0 55px;
@@ -219,9 +220,6 @@ margin-left:30px;
         margin: 0 auto;
     }
     .side-nav-spacer {
-        display:none;
-    }
-    img {
         display:none;
     }
 }

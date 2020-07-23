@@ -1,3 +1,7 @@
+// Adding a new token?
+// For all the places you need to update
+// search for :add 
+
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -77,10 +81,13 @@ void save(const char * buffer, const char * base_dir, const char * group, const 
 
 #define CREATE_ENUM(name)   name,
 
+// :add
 #define TOKENS(t)       \
     t(eof)              \
     t(header)           \
     t(quote)            \
+    t(bullet)           \
+    t(hr)               \
     t(code)             \
     t(config)           \
     t(text)             \
@@ -368,7 +375,7 @@ int token_code() {
 }
 
 
-// add new rules here
+// :add new rules here
 int match_token_rule(tk) {
     switch(tk) {
         case link:      return token_toggle(tk, tag_text_opened,  "[",  0);
@@ -379,6 +386,8 @@ int match_token_rule(tk) {
         case obold:     return token_toggle(tk, bold_opened,      "**", 0);
         case cbold:     return token_toggle(tk, bold_opened,      "**", 1);
         case quote:     return token_basic(tk, "> ");
+        case bullet:    return token_basic(tk, "- ");
+        case hr:        return token_basic(tk, "---");
         case nl:        return token_basic(tk, "\n");
         case config:    return token_config();
         case header:    return token_header();
@@ -435,6 +444,7 @@ int peek(TokenType type) {
     return peek_ahead(type, 0);
 }
 
+// :add
 #define NODES(f)        \
     f(NODE_UNDEFINED)   \
     f(NODE_TEXT)        \
@@ -446,6 +456,8 @@ int peek(TokenType type) {
     f(NODE_CODE)        \
     f(NODE_HEADER)      \
     f(NODE_QUOTE)       \
+    f(NODE_BULLET)      \
+    f(NODE_HR)          \
 
 typedef enum {
     NODES(CREATE_ENUM)
@@ -490,6 +502,9 @@ struct Node{
         struct { // NODE_QUOTE
             struct Node * inside;
         } quote;
+        struct { // NODE_BULLET
+            struct Node * inside;
+        } bullet;
     };
 };
 
@@ -598,12 +613,25 @@ void parse_quote(struct Node * node) {
     node->quote.inside = allocate(sizeof(struct Node));
     parse_any(node->quote.inside);
 }
+void parse_bullet(struct Node * node) {
+    assert(node);
+    consume(bullet);
+    node->type = NODE_BULLET;
+    node->bullet.inside = allocate(sizeof(struct Node));
+    parse_any(node->bullet.inside);
+}
+void parse_hr(struct Node * node) {
+    assert(node);
+    consume(hr);
+    node->type = NODE_HR;
+}
 
 void parse_rules(struct Node * node) {
     // if you look at the same token twice, throw an error
 	assert_s(g.tokens != g.prev_token, token_type_arr[g.tokens->type]);
 	g.prev_token = g.tokens;
 
+    // :add
     switch(g.tokens->type) {
         case link:      return parse_link(node);   
         case image:     return parse_image(node);  
@@ -614,6 +642,8 @@ void parse_rules(struct Node * node) {
         case cbold:     return;
         case citalic:   return;
         case quote:     return parse_quote(node);   
+        case bullet:    return parse_bullet(node);   
+        case hr:        return parse_hr(node);   
         case obold:     return parse_bold(node);   
         case oitalic:   return parse_italic(node); 
         case text:      return parse_text(node);   
@@ -644,6 +674,7 @@ void print_node(char * t, struct Node *node, int indent) {
         t_sprintf(t, " ");
     }
     //assert(node->type);
+    // :add
     switch(node->type){
         case NODE_HEADER: {
             t_sprintf(t, "HEADER ");
@@ -656,6 +687,15 @@ void print_node(char * t, struct Node *node, int indent) {
         case NODE_QUOTE: {
             t_sprintf(t, "QUOTE ");
             print_node(t, node->quote.inside, inside_indent);
+            break;
+        }
+        case NODE_BULLET: {
+            t_sprintf(t, "BULLET ");
+            print_node(t, node->bullet.inside, inside_indent);
+            break;
+        }
+        case NODE_HR: {
+            t_sprintf(t, "HR ");
             break;
         }
         case NODE_BOLD: {
@@ -701,7 +741,7 @@ void print_node(char * t, struct Node *node, int indent) {
             break;
         }
         default: 
-            printf("print_node node type not found %s\n", 
+            printf("print_node - node type not found %s\n", 
                 node_type_arr[node->type]);
             assert(0);
     }
@@ -715,7 +755,7 @@ void print_node(char * t, struct Node *node, int indent) {
 ********************* GENERATE HTML ************************** 
 *************************************************************/
 
-
+// :add
 void generate_html(char * t, struct Node * node) {
     assert(node);
     switch(node->type){
@@ -764,7 +804,7 @@ void generate_html(char * t, struct Node * node) {
 				char value_char = node->code.value[value_i];
 				if (value_char == '<') {
 					strcat(t, "&lt;");
-					value_i += 4;
+					value_i += 1;
 				}
 				else {
                     sprintf(&t[strlen(t)], "%c", value_char);
@@ -778,6 +818,14 @@ void generate_html(char * t, struct Node * node) {
             t_sprintf(t, "<div class='quote'>");
             generate_html(t, node->quote.inside);
             t_sprintf(t, "</div>");
+            break;
+        case NODE_BULLET:
+            t_sprintf(t, "<div>&bull; ");
+            generate_html(t, node->quote.inside);
+            t_sprintf(t, "</div>");
+            break;
+        case NODE_HR:
+            t_sprintf(t, "<hr>");
             break;
 		default:
 			printf("node not found: '%s'\n", node_type_arr[node->type]);
