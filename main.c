@@ -2,6 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
+struct Article { char group_name[30]; char file[60]; char article_name[200]; char *header; char *footer; char *title; char *nav; };
+
+#define HEADER_MAX 10000
+#define FOOTER_MAX 10000
+char header[HEADER_MAX];
+char footer[FOOTER_MAX];
+#include "series/articles.h"
+
 // could include from a common file
 #define assert(cond) {if (!(cond)){ printf("\n%s:%d:5: error: Assert failed: %s\n", __FILE__, __LINE__, #cond); *(volatile int * )0 = 0;}}
 
@@ -44,8 +52,6 @@ void read_file(char * filename, char * buffer, int max) {
     buffer[len] = '\0';
 }
 
-struct Article { char group_name[30]; char file[60]; char article_name[200]; char *header; char *footer; char *title; char *nav; };
-
 void createHtmlFromLinks(char * html, struct Link *link) {
     for (int i = 0; strlen(link[i].src) != 0; ++i) { 
         sprintf(html, "%s<a href='%s'>%s</a><br>",
@@ -53,8 +59,6 @@ void createHtmlFromLinks(char * html, struct Link *link) {
     }
 }
 
-#define HEADER_MAX 10000
-#define FOOTER_MAX 10000
 int main() {
     /*
 	char groups[GROUPS_MAX][GROUP_NAME_MAX] = {
@@ -70,46 +74,11 @@ int main() {
     for (int i = 0; i < memory_allocated;++i) {
         memory[i] = 'x';
     }
-    char header[HEADER_MAX];
-    char footer[FOOTER_MAX];
     read_file("templates/single_header.chtml", header, HEADER_MAX);
     read_file("templates/single_footer.chtml", footer, FOOTER_MAX);
 
 
-        //"<a href='#'></a><br>"
-    char programming_nav[1000] = {0};
-    {
-        struct Link link[] = {
-            {"Day 4 - A simple Compiler","#Day 4 - A simple Compiler"},
-            {"Day 9 - Codeclap", "#Day 9 - Codeclap"},
-            {"Day 13 - Nested Nodes", "#Day 13 - Nested Nodes"},
-            {"Day 20 - Start with the inside first", "#Day 20 - Start with the inside first"},
-            {"Day 25 - Segfault", "#Day 25 - Segfault"},
-              {"Using a switch statement as a data structure", "#Using a switch statement as a data structure"},
-            {"Conclusion", "#Conclusion"},
-            {"",""}
-        };
-        createHtmlFromLinks(programming_nav, link);
-    }
-    char codelog_nav[1000] = {0};
-    {
-        struct Link link[] = {
-            {"An alternative to a global stylesheet in React Native", "#An alternative to a global stylesheet in React Native"},
-            {"One Level Deeper - A Handmade Lesson applied to React Native", "#One Level Deeper - A Handmade Lesson applied to React Native"},
-            {"Markdown to HTML Compiler in C" ,"/markdown-to-html-compiler-in-c"},
-            {"",""}
-        };
-        createHtmlFromLinks(codelog_nav, link);
-    }
-
-
-
 // struct Article { char group_name[30]; char file[30]; char article_name[30]; char *header; char *footer; char *title; char *nav; };
-    struct Article articles[] = {
-        {"", "code-log-on-sethdetroit.txt", "codelog", header, footer, "Code Log" , codelog_nav}, 
-        {"", "projects/01_markdown_to_html_compiler_in_c.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
-        {"", "", "", "", "", "", ""},
-    };
 
     for (int i = 0; articles[i].file[0] != '\0'; ++i) {
         struct Article * a = &articles[i];
