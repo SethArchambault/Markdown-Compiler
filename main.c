@@ -108,7 +108,6 @@ int main() {
     struct Article articles[] = {
         {"", "code-log-on-sethdetroit.txt", "codelog", header, footer, "Code Log" , codelog_nav}, 
         {"", "projects/01_markdown_to_html_compiler_in_c.txt", "markdown-to-html-compiler-in-c", header, footer, "Markdown to HTML Compiler in C" , programming_nav},
-        {"", "projects/02_mapping_tech_for_protest.txt", "n6cyAAW3RsgKSV1P2k2Iz1rACqkBdFze0aVkf3nIvqILns8NlnusAXtm3am34UylE87hDNqK7ezPGFKxaZNQ", header, footer, "Mapping Tech for Protest" , programming_nav},
         {"", "", "", "", "", "", ""},
     };
 
