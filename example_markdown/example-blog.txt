@@ -1,0 +1,41 @@
+# Example Blog
+_Posted: 7/21/2020_
+
+
+Here's an example of a blog post!
+
+## A section of the post
+
+Some code:
+
+```
+int main() {
+    return 1;
+}
+```
+
+**bold text**
+
+_italic text_
+
+Bullets!
+
+- oh god
+- I love
+- bullets!
+
+
+
+---
+
+
+
+# A second blog post on the same page
+_Posted: 7/7/2020_
+
+Do you really want a separate post for each blog post? I mean you can do that but this is easier in my opinion..
+
+You can always link to the blog post - every h1 tag gets it's own anchor tag:
+[See what I mean](#Example Blog)
+
+H1's are all added to the navigation on the left.. At least in this template they are..
