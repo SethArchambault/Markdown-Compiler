@@ -535,6 +535,8 @@ void parse_image(struct Node * node) {
     node->type = NODE_IMAGE;
     consume(image);
     node->image.text = allocate(sizeof(struct Node));
+    // @TODO: If I didn't put any text here.. this can create a problem I guess!
+    // I guess there are two kinds of images essentially - images with alt tags, and images without.
     parse_any(node->image.text);
     Token * src_token = consume(src);
     node->image.src = allocate(strlen(src_token->value)+1);
@@ -574,6 +576,7 @@ void parse_text(struct Node * node) {
     Token *text_token = consume(text);
     node->text.value = allocate(strlen(text_token->value)+2); //nl + \0
     strcpy(node->text.value, text_token->value);
+    // seth - I think this is what is causing problems?
     if (peek(nl)) {
         strcat(node->text.value, "\n");
         consume(nl);
@@ -608,11 +611,15 @@ void parse_config(struct Node * node) {
     node = NULL;
     consume(config);
 }
+// seth
+// I think all of these have problems..
+// look at parse_code for a possible fix..
 void parse_quote(struct Node * node) {
     assert(node);
     consume(quote);
     node->type = NODE_QUOTE;
     node->quote.inside = allocate(sizeof(struct Node));
+    // this creates an infinite problem.
     parse_any(node->quote.inside);
 }
 void parse_bullet(struct Node * node) {
@@ -673,7 +680,7 @@ void print_node(char * t, struct Node *node, int indent) {
     int inside_indent = indent + 4;
     t_sprintf(t, "\n");
     for (int i = 0; i < indent;++i) {
-        t_sprintf(t, " ");
+        t_sprintf(t, "x");
     }
     //assert(node->type);
     // :add
