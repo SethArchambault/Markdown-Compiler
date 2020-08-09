@@ -79,6 +79,7 @@ int main() {
     // check out articles.h if you want to add new routes..
     for (int i = 0; articles[i].file[0] != '\0'; ++i) {
         struct Article * a = &articles[i];
+        printf("article %s\n", a->file);
         markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title);
         //printf("done %d\n", i);
     }

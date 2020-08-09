@@ -568,6 +568,10 @@ void parse_header(struct Node * node) {
         sprintf(g.header_links[g.header_links_idx].src, "#%s", node->header.value);
         ++g.header_links_idx;
     }
+    // conume a newline, to prevent artifical padding
+    if (peek(nl)) {
+        consume(nl);
+    }
 }
 
 void parse_text(struct Node * node) {
@@ -858,10 +862,14 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
 
     {
         char temp[TEMP_MAX] = {0};
+        temp[0] = '\0';
         t_sprintf_2s(temp, "../html_generator/series/", arg_filename);
         FILE * f = fopen(temp, "r");
-        temp[0] = '\0';
+        if (!f) {
+            printf("Error: file not found: %s\narg_filename: %s\n", temp, arg_filename);
+        }
         assert(f);
+        temp[0] = '\0';
         fseek(f, 0, SEEK_END);
         g.input_len = ftell(f);
         g.input = allocate(g.input_len+1);

@@ -86,11 +86,9 @@ p {
       padding-right:20px;
     }
 }
-h1,h2 {
+h1 {
   margin-top: 0;
   margin-bottom: 0;
-}
-h1 {
     padding:15px 0;
     text-align: center;
     color:#e31c60;
@@ -102,6 +100,7 @@ h1 {
         font-size:20px;
     }
 }
+/*
 h2 {
     color:#666666;
     background-color:#efefef;
@@ -109,6 +108,14 @@ h2 {
     border-radius:10px;
     font-size: 18px;
     font-weight:bold;
+}
+*/
+h2 {
+    border-radius:10px;
+    font-size: 25px;
+    font-weight:bold;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 a {
   text-decoration: underline;
@@ -123,7 +130,9 @@ color:#e31c60;
 }
 h2 a, h3 a{
     text-decoration:none;
-    color:#666666;
+}
+h2 a {
+    color:#1d1d1d;
 }
 h1 a:hover, h2 a:hover, h3 a:hover {
     text-decoration:underline;
