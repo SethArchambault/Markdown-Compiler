@@ -25,7 +25,7 @@ char footer[FOOTER_MAX];
 #define LINK_SRC_MAX        200
 
 #define TEMP_MAX            1000
-extern void markdown_compiler();
+extern void markdown_compiler(void * memory, unsigned long memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title);
 
 struct Link {
     char name[LINK_NAME_MAX];
@@ -48,10 +48,10 @@ void read_file(char * filename, char * buffer, int max) {
     FILE *f = fopen(filename, "r");
     assert(f);
     fseek(f, 0, SEEK_END);
-    int len = ftell(f);
+    long len = ftell(f);
     assert(len < max);
     fseek(f, 0, SEEK_SET);
-    fread(buffer, len, 1, f);
+    fread(buffer, (unsigned long) len, 1, f);
     buffer[len] = '\0';
 }
 
@@ -63,7 +63,7 @@ void createHtmlFromLinks(char * html, struct Link *link) {
 }
 
 int main() {
-    int memory_allocated = 13400000;
+    unsigned long memory_allocated = 1340000;
     char * memory = malloc(memory_allocated);
 
     /* some memory test

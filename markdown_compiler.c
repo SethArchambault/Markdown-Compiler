@@ -13,20 +13,20 @@
 #define inc(var, inc, max) { assert_d(var < max, var); var += inc; }
 
 #define t_sprintf(t,str){\
-    int needed = strlen(str) + strlen(t);\
+    int needed = (int)(strlen(str) + strlen(t));\
     assert_d(needed < TEMP_MAX, needed);\
     strcat(t, str);\
 }
 
 #define t_sprintf_2s(t,str1, str2){\
-    int needed = strlen(str1) + strlen(str2);\
+    int needed = (int)(strlen(str1) + strlen(str2));\
     assert_d(needed < TEMP_MAX, needed);\
     strcat(t, str1);\
     strcat(t, str2);\
 }
 
 #define t_sprintf_3s(t,str1, str2, str3){\
-    int needed = strlen(str1) + strlen(str2) + strlen(str3) + strlen(t);\
+    int needed = (int)(strlen(str1) + strlen(str2) + strlen(str3) + strlen(t));\
     assert_d(needed < TEMP_MAX, needed);\
     strcat(t, str1);\
     strcat(t, str2);\
@@ -34,8 +34,8 @@
 }
 
 #define t_sprintf_4s(t,str1, str2, str3, str4){\
-    int needed = strlen(str1) + strlen(str2) + strlen(str3) + \
-        strlen(str4) + strlen(t);\
+    int needed = (int)(strlen(str1) + strlen(str2) + strlen(str3) + \
+        strlen(str4) + strlen(t));\
     assert_d(needed < TEMP_MAX, needed);\
     strcat(t, str1);\
     strcat(t, str2);\
@@ -132,8 +132,8 @@ struct Global {
     Token * prev_token;
     int token_idx;
     char * memory;
-    int memory_allocated;
-    int memory_idx;
+    unsigned long memory_allocated;
+    unsigned long memory_idx;
     char * input;
     int input_idx;
     int input_len;
@@ -226,21 +226,21 @@ int is_inline_tag(const char * c) {
     // check for valid link
 }
 
-void * allocate(int memory_needed) {
-    int memory_free = (g.memory_allocated-g.memory_idx);
-    assert_d(memory_needed < memory_free, g.memory_allocated + memory_needed);
+void * allocate(unsigned long memory_needed) {
+    unsigned long memory_free = (g.memory_allocated-g.memory_idx);
+    assert_d(memory_needed < memory_free, (int)(g.memory_allocated + memory_needed));
     void * block = &g.memory[g.memory_idx];
     g.memory_idx += memory_needed;
     //printf("allocated   %20d    needed %20d\n", memory_free, memory_needed);
     return block;
 }
 
-void create_token(int type, char * cursor, int len) {
+void create_token(TokenType type, char * cursor, int len) {
     //printf("creating token %d, %s %d\n", g.token_idx, token_type_arr[type], len);
     Token * token   = &g.tokens[g.token_idx];
     token->type     = type;
     assert(len < CAPTURE_STR_MAX);
-    token->value    = allocate(len + 1);
+    token->value    = allocate((unsigned long)len + 1);
     int i;
     for(i = 0; i < len; ++i) {
         token->value[i] = cursor[i];
@@ -251,7 +251,7 @@ void create_token(int type, char * cursor, int len) {
 
 
 // Maybe add log files.
-void create_blank_token(int type) {
+void create_blank_token(TokenType type) {
     //printf("creating token %d, %s\n", g.token_idx, token_type_arr[type]);
     Token * token   = &g.tokens[g.token_idx];
     token->type     = type;
@@ -260,7 +260,7 @@ void create_blank_token(int type) {
 }
 
 int token_text() {
-    int token_type = text;
+    TokenType token_type = text;
     char * cursor = &g.input[g.input_idx];
     // capture text until you find a link or the end of the line
     int i = 0;
@@ -276,16 +276,16 @@ int token_text() {
     return 1;
 }
 
-int token_basic(int token_type, const char * str) {
+int token_basic(TokenType token_type, const char * str) {
     char * cursor = &g.input[g.input_idx];
     if(!is_match(cursor, str)) return 0;
-    create_token(token_type, cursor, strlen(str));
+    create_token(token_type, cursor, (int)strlen(str));
     inc(g.input_idx, strlen(str), INPUT_MAX);
     return 1;
 }
 
 int token_header() {
-    int token_type = header;
+    TokenType token_type = header;
     char * cursor = &g.input[g.input_idx];
     int i = 0;
     for(;cursor[i] == '#';++i);
@@ -324,7 +324,7 @@ int token_config() {
     return 1;
 }
 
-int token_toggle(int type, int flag, const char * match, int matching_state) {
+int token_toggle(TokenType type, int flag, const char * match, int matching_state) {
     char * cursor = &g.input[g.input_idx];
     if(!is_match(cursor, match)) return 0;
     if(flags[flag] != matching_state) return 0;
@@ -335,11 +335,11 @@ int token_toggle(int type, int flag, const char * match, int matching_state) {
 }
 
 int token_src() {
-    int type = src;
+    TokenType type = src;
     const char *front   = "](";
     const char *back    = ")";
-    int front_len       = strlen(front);
-    int back_len        = strlen(back);
+    int front_len       = (int)strlen(front);
+    int back_len        = (int)strlen(back);
     int flag            = tag_text_opened;
     char * cursor       = &g.input[g.input_idx];
     if(!is_match(cursor, front)) return 0;
@@ -359,8 +359,8 @@ int token_src() {
 int token_code() {
     const char * front  = "```";
     const char * back   = "```\n";
-    int front_len       = strlen(front);
-    int back_len        = strlen(back);
+    int front_len       = (int)strlen(front);
+    int back_len        = (int)strlen(back);
     char * cursor       = &g.input[g.input_idx];
     if(!is_match(cursor, front)) return 0;
     int i = front_len;
@@ -396,25 +396,25 @@ int match_token_rule(TokenType tk) {
         case text:      return token_text();
         case TokenTypeEnd:      break;
     }
-	printf("match - unknown token '%s'\n", token_type_arr[tk]);
+    printf("match - unknown token '%s'\n", token_type_arr[tk]);
 
-	// print error
-	// find start of line
-	int line_start = 0;
-	for(int i = 0; i < (int)strlen(g.input); ++i) {
-		printf("%c", g.input[i]);
-		if (g.input[i] == '\n'){ 
-		   if(i > g.input_idx) break;
-		   line_start = i;
-		}
-	}
-	// indent
-	int col = g.input_idx - line_start;
-	for(int i = 0; i < col ; ++i) {
-		printf(" ");
-	}
-	printf("|<-- no match: '%c'\n", g.input[g.input_idx]);
-	assert(0);
+    // print error
+    // find start of line
+    int line_start = 0;
+    for(int i = 0; i < (int)strlen(g.input); ++i) {
+        printf("%c", g.input[i]);
+        if (g.input[i] == '\n'){ 
+           if(i > g.input_idx) break;
+           line_start = i;
+        }
+    }
+    // indent
+    int col = g.input_idx - line_start;
+    for(int i = 0; i < col ; ++i) {
+        printf(" ");
+    }
+    printf("|<-- no match: '%c'\n", g.input[g.input_idx]);
+    assert(0);
     return 0;
 }
 
@@ -509,7 +509,7 @@ struct Node{
     };
 };
 
-void parse_any();
+void parse_any(struct Node *node);
 
 void parse_italic(struct Node * node) {
     assert(node);
@@ -556,7 +556,7 @@ void parse_header(struct Node * node) {
     assert(node);
     Token * header_token = consume(header);
     node->type = NODE_HEADER;
-    node->header.level = strlen(header_token->value);
+    node->header.level = (int)strlen(header_token->value);
     Token *text_token = consume(text);
     node->header.value = allocate(strlen(text_token->value)+1);
     strcpy(node->header.value, text_token->value);
@@ -599,7 +599,7 @@ void parse_code(struct Node * node) {
     strcpy(node->code.value, code_token->value);
 }
 
-int is_deadend(int type) {
+int is_deadend(TokenType type) {
     switch(type) {
         case eof:       return 1;
         case src:       return 1;
@@ -641,8 +641,8 @@ void parse_hr(struct Node * node) {
 
 void parse_rules(struct Node * node) {
     // if you look at the same token twice, throw an error
-	assert_s(g.tokens != g.prev_token, token_type_arr[g.tokens->type]);
-	g.prev_token = g.tokens;
+    assert_s(g.tokens != g.prev_token, token_type_arr[g.tokens->type]);
+    g.prev_token = g.tokens;
 
     // :add
     switch(g.tokens->type) {
@@ -810,23 +810,23 @@ void generate_html(char * t, struct Node * node) {
             generate_html(t, node->image.text);
             t_sprintf(t, "\">");
             break;
-		case NODE_CODE:{
-			t_sprintf(t, "<pre id='pre'>");
-			int value_i = 0;
-			for (;node->code.value[value_i] != '\0';) {
-				char value_char = node->code.value[value_i];
-				if (value_char == '<') {
-					strcat(t, "&lt;");
-					value_i += 1;
-				}
-				else {
+        case NODE_CODE:{
+            t_sprintf(t, "<pre id='pre'>");
+            int value_i = 0;
+            for (;node->code.value[value_i] != '\0';) {
+                char value_char = node->code.value[value_i];
+                if (value_char == '<') {
+                    strcat(t, "&lt;");
+                    value_i += 1;
+                }
+                else {
                     sprintf(&t[strlen(t)], "%c", value_char);
-					++value_i;
-				}
-			}
-			t_sprintf(t, "</pre>");
-			break;
-		}
+                    ++value_i;
+                }
+            }
+            t_sprintf(t, "</pre>");
+            break;
+        }
         case NODE_QUOTE:
             t_sprintf(t, "<div class='quote'>");
             generate_html(t, node->quote.inside);
@@ -840,8 +840,8 @@ void generate_html(char * t, struct Node * node) {
         case NODE_HR:
             t_sprintf(t, "<hr>");
             break;
-		default:
-			printf("node not found: '%s'\n", node_type_arr[node->type]);
+        default:
+            printf("node not found: '%s'\n", node_type_arr[node->type]);
             assert(0);
     }
     if (node->next != NULL) {
@@ -849,7 +849,7 @@ void generate_html(char * t, struct Node * node) {
     }
 }
 
-void markdown_compiler(void * memory, int memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title) {
+void markdown_compiler(void * memory, unsigned long memory_allocated, const char * arg_groupname, const char * arg_filename, const char * arg_articlename, const char * header, const char * footer, const char * title) {
     g.input_idx         = 0;
     g.token_idx         = 0;
     g.input_len         = 0;
@@ -871,10 +871,10 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
         assert(f);
         temp[0] = '\0';
         fseek(f, 0, SEEK_END);
-        g.input_len = ftell(f);
-        g.input = allocate(g.input_len+1);
+        g.input_len = (int)ftell(f);
+        g.input = allocate((unsigned long)g.input_len+1);
         fseek(f, 0, SEEK_SET);
-        fread(g.input, g.input_len, 1, f );
+        fread(g.input, (unsigned long)g.input_len, 1, f );
         fclose(f);
         g.input[g.input_len] = '\0';
     }
@@ -887,14 +887,14 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
         for (int rule_idx = 0; rule_idx < TokenTypeEnd; ++rule_idx) {
             // this does the most work
             // @TODO: danger! Infinite loop if no space at end of file..
-            match_found = match_token_rule(rule_idx);
+            match_found = match_token_rule((TokenType)rule_idx);
             if (match_found != 0) break;
         }
-		if (g.input_idx >= g.input_len)  {
+        if (g.input_idx >= g.input_len)  {
             // @hack - needed in case there is no newline at the end of a file
-			create_blank_token(eof);
-			break;
-		}
+            create_blank_token(eof);
+            break;
+        }
     }
     // assert tags are all closed
     for(int i = 0; i < FlagsEnd; ++i) {
@@ -955,8 +955,8 @@ void markdown_compiler(void * memory, int memory_allocated, const char * arg_gro
     }
 
     generate_html(temp, &node);
-	char script[] = "";
-    // @dangerous: this seems subject to glitches	
+    char script[] = "";
+    // @dangerous: this seems subject to glitches    
     assert((strlen(temp) + strlen(footer) + strlen(script)) < TEMP_MAX);
     sprintf(temp, footer, temp, script);
 
