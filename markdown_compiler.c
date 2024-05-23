@@ -227,11 +227,12 @@ int is_inline_tag(const char * c) {
 }
 
 void * allocate(unsigned long memory_needed) {
-    unsigned long memory_free = (g.memory_allocated-g.memory_idx);
+    unsigned long memory_free = (g.memory_allocated - g.memory_idx);
     assert_d(memory_needed < memory_free, (int)(g.memory_allocated + memory_needed));
     void * block = &g.memory[g.memory_idx];
-    g.memory_idx += memory_needed;
-    //printf("allocated   %20d    needed %20d\n", memory_free, memory_needed);
+    unsigned long align = 8 - (memory_needed % 8);
+    g.memory_idx += memory_needed + align;
+    //printf("allocated   %20lu    needed %20lu align %20lu \n", memory_free, memory_needed, align);
     return block;
 }
 
