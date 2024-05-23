@@ -128,7 +128,7 @@ Process 53813 stopped
 Target 0: (main) stopped.
 ```
 
-Okay, this shows us that we were running the `single_header` file, and that max was 1. This is a fake example, so yeah the problem is that `single_header` is longer than 1 character long, and we need to increaes the max. But let's go through the process anyways.
+Okay, this shows us that we were running the `single_header` file, and that max was 1.
 
 Let's check the variables using `var`:
 
@@ -141,8 +141,8 @@ Let's check the variables using `var`:
 (long) len = 5935
 ```
 
-Now we know that single_header has a byte length of 5935, so we are done with our investigation.
-Often it's not so easy, and we might need to move up the backtrace (stack frame) with `bt` and select a frame with `f`.
+Now we can see that single_header has a byte length of 5935, much greater than the max of 1, but we don't know where to update the max without looking deeper at the code.
+Let's check out the backtrace (stack frame) with `bt`:
 
 ```
 (lldb) bt
@@ -150,6 +150,11 @@ Often it's not so easy, and we might need to move up the backtrace (stack frame)
   * frame #0: 0x0000000100012bec main`read_file(filename="templates/single_header.chtml", buffer="", max=1) at main.c:52:5
     frame #1: 0x0000000100012d90 main`main at main.c:63:5
     frame #2: 0x0000000192393f28 dyld`start + 2236
+```
+
+Fortunately the program is not too complex, so we can see we're interested in frame 1. We could also move one up the stack by typing `up`, but `f` is more useful for all kinds of travel.
+
+```
 (lldb) f 1
 frame #1: 0x0000000100012d90 main`main at main.c:63:5
    60       char * memory = malloc(memory_allocated);
@@ -161,9 +166,7 @@ frame #1: 0x0000000100012d90 main`main at main.c:63:5
    66       // check out articles.h if you want to add new routes..
 ```
 
-From there we can continue to get vars and move up the stack to locate enough info about the error.
-
-
+Ah so here we see that HEADER_MAX needs to be changed. That lives in main.c, so we're all done. But if we hadn't solved all mysteries that point, we could print out more variables.
 
 [Casey Muratori - Compression Oriented Programming](https://caseymuratori.com/blog_0015)
 
