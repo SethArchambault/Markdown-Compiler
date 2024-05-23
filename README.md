@@ -15,6 +15,8 @@ a line
 Becomes this:
 ![Markdown to html](browser.png)
 
+[Full dev log here](https://sethdetroit.com/series/markdown-to-html-compiler-in-c.html) (Yes, that site is created using this.)
+
 Not really recommended for public use, but if you're adventurous go
 ahead.. Also if you make something better let me know!
 
