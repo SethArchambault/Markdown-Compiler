@@ -3,9 +3,10 @@ A minimal markdown compiler for my personal website, written in C in a Handmade
 style. Not really recommended for public use, but if you're adventurous go
 ahead.. Also if you make something better let me know!
 
-# Setup
+# Setup on MacOS
 
-This will 
+This will: 
+
 - Generate the folder structure
 - Create a sample file
 - Download the compiler
@@ -21,6 +22,7 @@ echo "# a heading\nregular text, _italic_, **bold**, [link](https://handmade.net
 git clone git@github.com:SethArchambault/Markdown-Compiler.git
 cd Markdown-Compiler
 ./build.sh
+cd ..
 open public/series/example-blog-url.html
 ```
 
