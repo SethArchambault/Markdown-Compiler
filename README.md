@@ -1,6 +1,21 @@
 # Markdown-Compiler
 A minimal markdown compiler for my personal website, written in C in a Handmade
-style. Not really recommended for public use, but if you're adventurous go
+style. 
+
+So this:
+```
+# a heading
+regular text, _italic_, **bold**, [link](https://handmade.network.com) 
+> quote
+---
+a line
+- bullet 
+```
+
+Becomes this:
+![Markdown to html](browser.png)
+
+Not really recommended for public use, but if you're adventurous go
 ahead.. Also if you make something better let me know!
 
 # Setup on MacOS
@@ -28,6 +43,8 @@ open Markdown-Compiler/series/articles.h
 open public/series/example-blog-url.html
 open html_generator/series/example-blog.txt
 ```
+
+
 
 # Notes
 
