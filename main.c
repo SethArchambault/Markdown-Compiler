@@ -55,22 +55,9 @@ void read_file(char * filename, char * buffer, int max) {
     buffer[len] = '\0';
 }
 
-void createHtmlFromLinks(char * html, struct Link *link) {
-    for (int i = 0; strlen(link[i].src) != 0; ++i) { 
-        sprintf(html, "%s<a href='%s'>%s</a><br>",
-                html, link[i].src, link[i].name);
-    }
-}
-
 int main() {
     unsigned long memory_allocated = 1340000;
     char * memory = malloc(memory_allocated);
-
-    /* some memory test
-    for (int i = 0; i < memory_allocated;++i) {
-        memory[i] = 'x';
-    }
-    */
 
     // templates
     read_file("templates/single_header.chtml", header, HEADER_MAX);
@@ -81,7 +68,6 @@ int main() {
         struct Article * a = &articles[i];
         printf("article %s\n", a->file);
         markdown_compiler(memory, memory_allocated, a->group_name, a->file, a->article_name, a->header, a->footer, a->title);
-        //printf("done %d\n", i);
     }
     // read file
     printf("DONE\n");

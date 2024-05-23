@@ -30,8 +30,8 @@ body {
   font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   font-size:20px;
   background:#eee;
-	color:#1d1d1d;
-	
+    color:#1d1d1d;
+    
 }
 pre {
     overflow:scroll;
@@ -58,8 +58,8 @@ p {
 }
 
 .white-box {
-	/*border-radius:3px;*/
-	padding: 20px 0;
+    /*border-radius:3px;*/
+    padding: 20px 0;
     background:#fff;
     border:1px solid #eccbd6;
 /*    box-shadow: 15px 15px 0px rgba(227,28,96,1);*/
@@ -258,10 +258,10 @@ margin-left:30px;
         </div>
         <div class="side-nav-spacer" style="width:300px;"></div>
         <div style="flex:1;width:100%%;max-width:900px;" class="content-box white-box">
-			<div class="side-padding">
-				<div style="text-align:center; font-size:17px;font-family:monospace, Courier;padding:0px 0 20px;">
+            <div class="side-padding">
+                <div style="text-align:center; font-size:17px;font-family:monospace, Courier;padding:0px 0 20px;">
                     <div class="normal_font" style="font-weight:100;font-size:30px;">(<a href="/" style="text-decoration:none;"><span style="font-size:20px;" class="accent">♡</span></a>)</div>
-				</div>
-			</div>
-			<hr>
-			<div class="side-padding" style="box-sizing:border-box;padding-top:20px;padding-bottom: 20px;">
+                </div>
+            </div>
+            <hr>
+            <div class="side-padding" style="box-sizing:border-box;padding-top:20px;padding-bottom: 20px;">
