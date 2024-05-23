@@ -12,6 +12,7 @@ This will:
 - Download the compiler
 - Build the website
 - Open the webite
+- Open the example file
 
 ```
 mkdir my_website
@@ -23,8 +24,22 @@ git clone git@github.com:SethArchambault/Markdown-Compiler.git
 cd Markdown-Compiler
 ./build.sh
 cd ..
+open Markdown-Compiler/series/articles.h
 open public/series/example-blog-url.html
+open html_generator/series/example-blog.txt
 ```
+
+# Notes
+
+- Articles go in: html_generator/series
+- And come out:  public/series
+- Each new file will need a line in Markdown-Compiler/series/articles.h
+- The header is in Markdown-Compiler/single_header.chtml
+- The footer is in Markdown-Compiler/single_footer.chtml
+- Notice that h1 tags `#` will have navigation that shows up in the sidebar.
+- This is assuming your server is pointing at the public folder, and that you've got an index there that links to some of the pages in the series folder. Don't ask me why it's called series, I don't remember.
+
+
 
 
 
