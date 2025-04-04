@@ -37,11 +37,11 @@ cd my_website
 mkdir -p public/series
 mkdir -p html_generator/series
 cp example_markdown/example-blog.txt > html_generator/series/example-blog.txt
-git clone git@github.com:SethArchambault/Markdown-Compiler.git
-cd Markdown-Compiler
+git clone git@github.com:SethArchambault/Markdown-Compiler.git compiler
+cd compiler
 ./build.sh
 cd ..
-open Markdown-Compiler/series/articles.h
+open compiler/series/articles.h
 open public/series/example-blog-url.html
 open html_generator/series/example-blog.txt
 ```
